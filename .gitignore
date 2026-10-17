@@ -1,4 +1,16 @@
-# Ignore node_modules
-node_modules/
-# Ignore environment variables file
+# Environment secrets
 .env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+dist/
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local development
+.DS_Store
