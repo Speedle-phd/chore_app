@@ -1,10 +1,9 @@
-import { useTheme } from "@/components/theme-provider"
-import { cn, themeClass } from "@/lib/utils"
+
+import { cn } from "@/lib/utils"
 const MainWrapper = ({ children }: { children: React.ReactNode }) => {
-   const { theme } = useTheme()
-   const shadowClass = themeClass('shadow', theme) // Replace 'light' with the actual theme if available
+ // Replace 'light' with the actual theme if available
   return (
-    <div className={cn(`m-4 p-4 max-w-[clamp(300px,90vw,800px)] mx-auto max-h-3xl border-2 rounded-sm`, shadowClass)}>
+    <div className={cn(`m-8 p-4 max-w-[clamp(300px,90vw,900px)] bg-primary-foreground mx-auto max-h-3xl border-2 rounded-sm`, "shadow-sm shadow-theme")}>
       {children}
     </div>
   )

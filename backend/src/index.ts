@@ -5,25 +5,31 @@ import mongoose from 'mongoose'
 import pinoHttp from 'pino-http'
 import { Server } from 'socket.io'
 import { createServer } from 'node:http'
-
+import { errorHandler } from './middleware/errorHandler'
+import { notFound } from './middleware/notFound'
+import { memberRoutes } from './routes/memberRoutes'
 const app = express()
 const httpServer = createServer(app)
 const PORT = Number(process.env.PORT) || 3000
 const MONGODB_URI = process.env.MONGODB_URI
-
 const corsSettings = {
    origin: process.env.FRONTEND_URL ?? 'http://localhost:5173',
+   credentials: true,
    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
 }
-
 const io = new Server(httpServer, {
    cors: corsSettings,
 })
+
+console.log('BACKEND CHANGE DETECTED!')
 
 // Middleware
 app.use(cors(corsSettings))
 app.use(express.json())
 app.use(pinoHttp())
+app.use('/api', memberRoutes)
+app.use(notFound)
+app.use(errorHandler)
 
 // Health check
 app.get('/api/health', (_req, res) => {
