@@ -9,6 +9,8 @@ import EditButton from './EditButton'
 import DeleteButton from './DeleteButton'
 
 import AddMemberButton from './ui/AddMemberButton'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import CreateMemberForm from './CreateMemberForm';
 
 type MemberCardProps = {
    member?: Member
@@ -19,13 +21,31 @@ const MemberCard = ({ member }: MemberCardProps) => {
       <Card className={cn('border-2 border-dashed border-theme')}>
          <CardContent className='flex flex-col items-center gap-2'>
             <div
-               className={cn('bg-theme', 'rounded-full h-12 w-12 flex items-center justify-center select-none')}
+               className={cn(
+                  'bg-theme',
+                  'rounded-full h-12 w-12 flex items-center justify-center select-none'
+               )}
             >
                <span className='text-3xl font-medium text-muted'>+</span>
             </div>
             <h3>Growing the Schnuffication?</h3>
-            <p className='text-muted-foreground text-center text-xs'>Invite some schnuffis to join the schnuffiliciousness</p>
-            <AddMemberButton onClick={() => console.log('Invite member clicked')} />
+            <p className='text-muted-foreground text-center text-xs'>
+               Invite some schnuffis to join the schnuffiliciousness
+            </p>
+            <Dialog>
+               <DialogTrigger>
+                  <AddMemberButton />
+               </DialogTrigger>
+               <DialogContent>
+                  <DialogHeader>
+                     <DialogTitle>Create a new Schnuffi</DialogTitle>
+                     <DialogDescription>
+                        Fill in the details below to add a new member to the schnuffiliciousness
+                     </DialogDescription>
+                  </DialogHeader>
+                  <CreateMemberForm />
+               </DialogContent>
+            </Dialog>
          </CardContent>
       </Card>
    )

@@ -8,9 +8,9 @@ type AddMemberButtonProps = {
 const AddMemberButton = ({ onClick }: AddMemberButtonProps) => {
 
    return (
-      <Button className={cn("bg-theme", " rounded-lg")} onClick={onClick}>
-         <UserPlus />{"Invite member"}
-      </Button>
+      <div role="button" className={cn("bg-theme hover:opacity-80 flex justify-content align-items p-2 text-primary-foreground", " rounded-lg")} onClick={onClick}>
+         <UserPlus size={16}/><span className='ml-2'>Add Member</span>
+      </div>
    )
 }
 

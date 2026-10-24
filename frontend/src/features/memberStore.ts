@@ -8,8 +8,8 @@ export type Member = {
    fullName: string,
    handle: string,
    email: string,
-   role: string,
-   avatarUrl: string,
+   role: "admin" | "member",
+   avatarUrl?: string,
    _createdAt: string,
    _updatedAt: string,
 }
