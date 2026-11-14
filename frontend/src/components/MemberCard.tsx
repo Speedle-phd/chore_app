@@ -42,7 +42,7 @@ import {
 
 const ROLE_ICON = { owner: Crown, admin: ShieldCheck, member: User } as const
 
-type MemberCardProps = { member: Member; myRole: Role; householdId: string }
+type MemberCardProps = { member: Member; myRole: Role; householdId: string; online?: boolean }
 
 export function AddProfileCard({ householdId }: { householdId: string }) {
    const [open, setOpen] = useState(false)
@@ -85,7 +85,7 @@ export function AddProfileCard({ householdId }: { householdId: string }) {
    )
 }
 
-const MemberCard = ({ member, myRole, householdId }: MemberCardProps) => {
+const MemberCard = ({ member, myRole, householdId, online = false }: MemberCardProps) => {
    const navigate = useNavigate()
    const household = useHousehold()
    const [editOpen, setEditOpen] = useState(false)
@@ -104,10 +104,21 @@ const MemberCard = ({ member, myRole, householdId }: MemberCardProps) => {
    return (
       <Card className='group gap-0 rounded-2xl p-0 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5 hover:ring-primary/30'>
          <div className='flex flex-1 items-start gap-4 p-5'>
-            <Avatar className='size-12'>
-               <AvatarImage src={avatarSrc(member)} alt='' />
-               <AvatarFallback className='bg-primary/15 font-medium text-primary'>{initials(member)}</AvatarFallback>
-            </Avatar>
+            <span className='relative shrink-0'>
+               <Avatar className='size-12'>
+                  <AvatarImage src={avatarSrc(member)} alt='' />
+                  <AvatarFallback className='bg-primary/15 font-medium text-primary'>{initials(member)}</AvatarFallback>
+               </Avatar>
+               {/* Accounts only: profiles can't be online. */}
+               {member.kind === 'account' && online && (
+                  <span
+                     className='absolute right-0 bottom-0 size-3.5 rounded-full bg-emerald-500 ring-2 ring-card'
+                     title='Online'
+                  >
+                     <span className='sr-only'>Online</span>
+                  </span>
+               )}
+            </span>
             <div className='min-w-0 flex-1'>
                <h3 className='flex items-center gap-2 font-semibold'>
                   <span className='truncate'>{member.fullName}</span>

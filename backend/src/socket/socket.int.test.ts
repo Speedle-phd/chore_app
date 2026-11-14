@@ -28,7 +28,7 @@ const clients: ClientSocket[] = []
 
 beforeAll(async () => {
    httpServer = createServer(app)
-   createSocketServer(httpServer, env, createSessions(sessionConfig(true)))
+   createSocketServer(httpServer, env, createSessions(sessionConfig(true)), { presenceGraceMs: 0 })
    await new Promise<void>((resolve) => httpServer.listen(0, resolve))
    url = `http://localhost:${(httpServer.address() as AddressInfo).port}`
 })
@@ -64,7 +64,9 @@ const rejected = (s: Client) =>
       s.once('connect', () => reject(new Error('should have been rejected')))
    })
 const subscribe = (s: Client, householdId: unknown) =>
-   new Promise<{ ok: boolean; error?: string }>((resolve) => s.emit('household:subscribe', householdId, resolve))
+   new Promise<{ ok: boolean; error?: string; data?: { online: string[] } }>((resolve) =>
+      s.emit('household:subscribe', householdId, resolve),
+   )
 const next = <E extends keyof ServerToClientEvents>(s: Client, event: E) =>
    new Promise<Parameters<ServerToClientEvents[E]>[0]>((resolve) => {
       s.once(event, ((payload: Parameters<ServerToClientEvents[E]>[0]) => resolve(payload)) as never)
@@ -124,7 +126,7 @@ describe('household rooms', () => {
 
       const m = client(member.cookie)
       await connected(m)
-      expect(await subscribe(m, hid)).toEqual({ ok: true })
+      expect(await subscribe(m, hid)).toMatchObject({ ok: true })
    })
 
    it('pushes a change to other members after a successful REST write, not to strangers', async () => {
@@ -166,6 +168,68 @@ describe('household rooms', () => {
       // No more events from that household.
       const quiet = silent(m, 'household:changed')
       await api(owner.cookie).patch(`/api/households/${hid}`, { name: 'After removal' })
+      expect(await quiet).toBe(true)
+   })
+})
+
+describe('online presence', () => {
+   const ownerMid = async (hid: string, userId: string) =>
+      (await Membership.findOne({ householdId: hid, userId }))?.id as string
+
+   it('subscribing returns who in the household is online right now', async () => {
+      const { owner, member, hid, mid } = await household()
+      const o = client(owner.cookie)
+      await connected(o)
+      expect((await subscribe(o, hid)).data?.online).toEqual([await ownerMid(hid, owner.user.id)])
+
+      const m = client(member.cookie)
+      await connected(m)
+      expect((await subscribe(m, hid)).data?.online.sort()).toEqual([await ownerMid(hid, owner.user.id), mid].sort())
+   })
+
+   it('members see others come online and go offline (by membership id)', async () => {
+      const { owner, member, hid, mid } = await household()
+      const o = client(owner.cookie)
+      await connected(o)
+      await subscribe(o, hid)
+
+      const cameOnline = next(o, 'presence:changed')
+      const m = client(member.cookie)
+      await connected(m)
+      expect(await cameOnline).toEqual({ householdId: hid, memberId: mid, online: true })
+
+      const wentOffline = next(o, 'presence:changed')
+      m.disconnect()
+      expect(await wentOffline).toEqual({ householdId: hid, memberId: mid, online: false })
+   })
+
+   it('stays online while another tab is open', async () => {
+      const { owner, member, hid, mid } = await household()
+      const o = client(owner.cookie)
+      await connected(o)
+      await subscribe(o, hid)
+      const cameOnline = next(o, 'presence:changed')
+      const tab1 = client(member.cookie)
+      const tab2 = client(member.cookie)
+      await Promise.all([connected(tab1), connected(tab2)])
+      expect(await cameOnline).toMatchObject({ memberId: mid, online: true }) // announced once
+
+      const quiet = silent(o, 'presence:changed')
+      tab1.disconnect()
+      expect(await quiet).toBe(true)
+
+      const offline = next(o, 'presence:changed')
+      tab2.disconnect()
+      expect(await offline).toMatchObject({ memberId: mid, online: false })
+   })
+
+   it('people outside the household don’t learn anyone’s status', async () => {
+      const { member, hid } = await household()
+      const stranger = client((await signedInUser(app, 'Stranger')).cookie)
+      await connected(stranger)
+      expect(await subscribe(stranger, hid)).toEqual({ ok: false, error: 'Household not found' })
+      const quiet = silent(stranger, 'presence:changed')
+      await connected(client(member.cookie))
       expect(await quiet).toBe(true)
    })
 })

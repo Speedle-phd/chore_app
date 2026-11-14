@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useHousehold, useMembers, type Member } from '@/features/households/householdsApi'
 import { canManage } from '@/features/households/permissions'
+import { useOnlineMembers } from '@/features/realtime/presence'
 import InviteDialog from '@/features/invitations/InviteDialog'
 import PendingInvitations from '@/features/invitations/PendingInvitations'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -22,6 +23,7 @@ const Members = () => {
    const meta = usePageMeta('/members')
    const household = useHousehold()
    const members = useMembers(household.id)
+   const online = useOnlineMembers(household.id)
    const [filter, setFilter] = useState('')
    const term = useDebounce(filter, 300).trim().toLowerCase()
 
@@ -95,7 +97,13 @@ const Members = () => {
          ) : (
             <div className='auto-grid'>
                {visible.map((member) => (
-                  <MemberCard key={member.id} member={member} myRole={household.role} householdId={household.id} />
+                  <MemberCard
+                     key={member.id}
+                     member={member}
+                     myRole={household.role}
+                     householdId={household.id}
+                     online={online.has(member.id)}
+                  />
                ))}
                {!term && mayManage && <AddProfileCard householdId={household.id} />}
             </div>
