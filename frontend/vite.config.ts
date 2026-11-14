@@ -13,9 +13,20 @@ export default defineConfig({
    server: {
       host: '0.0.0.0',
       proxy: {
+         // Everything the browser needs from the backend goes through this
+         // origin, so cookies stay first-party and no CORS is involved.
          '/api': {
             target: 'http://backend:3000',
             changeOrigin: true,
+         },
+         '/uploads': {
+            target: 'http://backend:3000',
+            changeOrigin: true,
+         },
+         '/socket.io': {
+            target: 'http://backend:3000',
+            changeOrigin: true,
+            ws: true,
          },
       },
    },

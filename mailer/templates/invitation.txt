@@ -1,0 +1,9 @@
+Hi,
+
+{{ inviter }} invited you to join {{ household }} on Hearth{% if role == "admin" %} as an admin{% endif %}{% if claims %}, taking over the profile {{ claims }}{% endif %}.
+
+View the invitation: {{ link }}
+
+The invitation expires in 7 days. If you don't know {{ inviter }}, you can ignore this email.
+
+— Hearth

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}You're invited{% endblock %}
+{% block content %}
+<p>Hi,</p>
+<p><strong>{{ inviter }}</strong> invited you to join <strong>{{ household }}</strong> on Hearth{% if role == "admin" %} as an admin{% endif %}{% if claims %}, taking over the profile <strong>{{ claims }}</strong>{% endif %}.</p>
+<p>Hearth is where your household shares chores, plans and groceries.</p>
+<p style="margin:24px 0;"><a href="{{ link }}" style="display:inline-block;background:#477a68;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:600;">View invitation</a></p>
+<p style="font-size:13px;color:#68776e;">The invitation expires in 7 days. If you don't know {{ inviter }}, you can ignore this email.</p>
+<p style="font-size:12px;color:#68776e;word-break:break-all;">{{ link }}</p>
+{% endblock %}

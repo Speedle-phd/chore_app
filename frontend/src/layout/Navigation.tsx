@@ -1,126 +1,143 @@
-import { useResize } from '@/hooks/useResize'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { NavigationItem } from '@/types/types'
 import { motion } from 'motion/react'
 import { cn } from '@/lib/utils'
-
 import { NavLink } from 'react-router-dom'
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import {
+   Sheet,
+   SheetContent,
+   SheetDescription,
+   SheetHeader,
+   SheetTitle,
+   SheetTrigger,
+} from '@/components/ui/sheet'
 import { Menu } from 'lucide-react'
-
-
 
 type NavigationProps = {
    navigationItems: NavigationItem[]
-   SMALL_SCREEN_WIDTH: number
 }
 
-const Navigation = ({ navigationItems, SMALL_SCREEN_WIDTH }: NavigationProps) => {
-   const { width } = useResize()
+const highlightTransition = {
+   type: 'spring',
+   stiffness: 380,
+   damping: 32,
+} as const
+
+const Navigation = ({ navigationItems }: NavigationProps) => {
    const [open, setOpen] = useState(false)
+
    return (
       <>
-         {width < SMALL_SCREEN_WIDTH ? (
-            <div className="flex justify-center py-2">
-               <Sheet open={open} onOpenChange={setOpen}>
-                  <SheetTrigger render={<Button variant="outline" className={cn('cursor-pointer w-8 aspect-square', 'bg-theme')} onClick={() => setOpen(true)}>
-                     <Menu />
-                  </Button>} />
-                  <SheetContent>
-                     <SheetHeader className={"mt-10"}>
-                        <SheetTitle>Navigation</SheetTitle>
-                        <SheetDescription className="">
-                           Use the navigation menu to switch between different sections of the app.
-                        </SheetDescription>
-                     </SheetHeader>
-                     {navigationItems.map((item) => {
-                        const { href, Icon, label } = item
-                        return (
-                           <NavLink key={href} to={href} className='relative' onClick={() => setOpen(false)}>
-                              {({ isActive }) => (
-                                 <div
+         {/* Desktop: pill navigation */}
+         <nav
+            aria-label='Main'
+            className='mx-auto hidden items-center gap-1 rounded-full border border-border/70 bg-muted/60 p-1 lg:flex'
+         >
+            {navigationItems.map(({ href, Icon, label }) => (
+               <NavLink
+                  key={href}
+                  to={href}
+                  end={href === '/'}
+                  title={label}
+                  aria-label={label}
+                  className='rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
+               >
+                  {({ isActive }) => (
+                     <span
+                        className={cn(
+                           'relative flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors xl:px-3.5',
+                           isActive
+                              ? 'text-foreground'
+                              : 'text-muted-foreground hover:text-foreground',
+                        )}
+                     >
+                        {isActive && (
+                           <motion.span
+                              layoutId='nav-highlight'
+                              className='absolute inset-0 rounded-full bg-card shadow-sm ring-1 ring-border/70'
+                              transition={highlightTransition}
+                           />
+                        )}
+                        <Icon
+                           className={cn(
+                              'relative z-10 size-4',
+                              isActive && 'text-primary',
+                           )}
+                        />
+                        {/* Icons only between lg and xl, so the header never wraps */}
+                        <span className='relative z-10 hidden xl:inline'>{label}</span>
+                     </span>
+                  )}
+               </NavLink>
+            ))}
+         </nav>
+
+         {/* Mobile: slide-over sheet */}
+         <div className='order-last lg:hidden'>
+            <Sheet open={open} onOpenChange={setOpen}>
+               <SheetTrigger
+                  render={
+                     <Button
+                        variant='outline'
+                        size='icon'
+                        aria-label='Open navigation'
+                     >
+                        <Menu />
+                     </Button>
+                  }
+               />
+               <SheetContent className='gap-0 p-0'>
+                  <SheetHeader className='border-b p-5'>
+                     <SheetTitle className='text-base'>Navigate</SheetTitle>
+                     <SheetDescription>
+                        Jump to any part of your home.
+                     </SheetDescription>
+                  </SheetHeader>
+                  <nav aria-label='Main' className='flex flex-col gap-1 p-3'>
+                     {navigationItems.map(({ href, Icon, label, subtitle }) => (
+                        <NavLink
+                           key={href}
+                           to={href}
+                           end={href === '/'}
+                           onClick={() => setOpen(false)}
+                           className='rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
+                        >
+                           {({ isActive }) => (
+                              <span
+                                 className={cn(
+                                    'flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors',
+                                    isActive
+                                       ? 'bg-primary/10 text-foreground'
+                                       : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                                 )}
+                              >
+                                 <span
                                     className={cn(
-                                       'relative flex items-center gap-2',
-                                       'rounded-[5px_5px_0_0] py-2 px-4',
-                                       'text-xs transition-colors duration-200',
+                                       'grid size-9 shrink-0 place-items-center rounded-lg',
                                        isActive
-                                          ? 'text-primary-foreground'
-                                          : 'text-muted-foreground hover:text-foreground',
+                                          ? 'bg-primary text-primary-foreground'
+                                          : 'bg-muted',
                                     )}
                                  >
-                                    {isActive && (
-                                       <motion.div
-                                          layoutId='nav-highlight'
-                                          className={cn(
-                                             'absolute inset-0 rounded-[5px_5px_0_0]',
-                                             'bg-theme',
-                                          )}
-                                          transition={{
-                                             type: 'spring',
-                                             stiffness: 380,
-                                             damping: 32,
-                                          }}
-                                       />
-                                    )}
-
-                                    <Icon size={16} className='relative z-10 text-primary-foreground' />
-
-                                    <span className='relative z-10'>
+                                    <Icon className='size-4' />
+                                 </span>
+                                 <span className='min-w-0'>
+                                    <span className='block text-sm font-medium'>
                                        {label}
                                     </span>
-                                 </div>
-                              )}
-                           </NavLink>
-                        )
-                     })}
-                  </SheetContent>
-               </Sheet>
-            </div>
-         ) : (
-            <div className={cn('flex justify-center gap-4')}>
-               {navigationItems.map((item) => {
-                  const { href, Icon, label } = item
-                  return (
-                     <NavLink key={href} to={href} className='relative'>
-                        {({ isActive }) => (
-                           <div
-                              className={cn(
-                                 'relative flex items-center justify-center gap-2',
-                                 'rounded-[5px_5px_0_0] py-2 px-4',
-                                 'text-xs transition-colors duration-200',
-                                 isActive
-                                    ? 'text-secondary'
-                                    : 'text-muted-foreground hover:text-foreground',
-                              )}
-                           >
-                              {isActive && (
-                                 <motion.div
-                                    layoutId='nav-highlight'
-                                    className={cn(
-                                       'absolute inset-0 rounded-[5px_5px_0_0]',
-                                       'bg-theme',
-                                    )}
-                                    transition={{
-                                       type: 'spring',
-                                       stiffness: 380,
-                                       damping: 32,
-                                    }}
-                                 />
-                              )}
-
-                              <Icon size={16} className='relative z-10' />
-
-                              <span className='relative z-10 text-center'>
-                                 {label}
+                                    <span className='block truncate text-xs text-muted-foreground'>
+                                       {subtitle}
+                                    </span>
+                                 </span>
                               </span>
-                           </div>
-                        )}
-                     </NavLink>
-                  )
-               })}
-            </div>
-         )}
+                           )}
+                        </NavLink>
+                     ))}
+                  </nav>
+               </SheetContent>
+            </Sheet>
+         </div>
       </>
    )
 }

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Passkey removed{% endblock %}
+{% block content %}
+<p>Hi {{ name }},</p>
+<p>The passkey <strong>{{ passkey }}</strong> was just removed from your Hearth account.</p>
+<p>If this wasn't you, review your passkeys and signed-in devices and change your password:</p>
+<p style="margin:24px 0;"><a href="{{ link }}" style="display:inline-block;background:#477a68;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:600;">Review my account</a></p>
+{% endblock %}

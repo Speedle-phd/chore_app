@@ -1,0 +1,105 @@
+# Production stack (see DEPLOY.md). Development keeps using compose.yaml.
+#
+#   cp .env.production.example .env.production        # fill in
+#   cp mailer/.env.example mailer/.env                 # your SMTP provider
+#   docker compose -f compose.prod.yaml --env-file .env.production up -d --build
+#
+# Only "web" is reachable from outside (ports 80/443). Everything else talks
+# over the internal network.
+name: hearth
+
+services:
+  # Caddy: serves the app, gets HTTPS certificates automatically, forwards
+  # /api, /uploads and /socket.io to the backend.
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp" # HTTP/3
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env.production (e.g. hearth.example.com)}
+    volumes:
+      - caddy_data:/data # certificates: keep this volume
+      - caddy_config:/config
+    healthcheck:
+      # 127.0.0.1, not localhost: Caddy's admin API listens on IPv4 only.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: "mongodb://${MONGO_INITDB_ROOT_USERNAME:?Set MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD:?Set MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/${MONGO_DATABASE:-chores}?authSource=admin"
+      APP_URL: ${APP_URL:-https://${DOMAIN}}
+      COOKIE_SECURE: "true"
+      # One reverse proxy (Caddy) in front: trust exactly one X-Forwarded-For hop.
+      TRUST_PROXY: "1"
+      MAILER_URL: http://mailer:8000
+      MAILER_KEY: ${MAILER_KEY:?Set MAILER_KEY (at least 32 characters)}
+    volumes:
+      - avatar_uploads:/app/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+      mailer:
+        condition: service_healthy
+
+  mailer:
+    build:
+      context: ./mailer
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      # Your SMTP provider (see mailer/.env.example). Required in production.
+      - path: ${MAILER_ENV_FILE:-./mailer/.env}
+        required: true
+    environment:
+      MAILER_KEY: ${MAILER_KEY:?Set MAILER_KEY (at least 32 characters)}
+      # Refuse to start without real SMTP settings (no Mailpit in production).
+      MAILER_REQUIRE_SMTP: "true"
+
+  mongo:
+    image: mongo:8
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-chores}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --username
+        - ${MONGO_INITDB_ROOT_USERNAME}
+        - --password
+        - ${MONGO_INITDB_ROOT_PASSWORD}
+        - --authenticationDatabase
+        - admin
+        - --eval
+        - "db.adminCommand('ping').ok"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongo_data:
+  avatar_uploads:
+  caddy_data:
+  caddy_config:

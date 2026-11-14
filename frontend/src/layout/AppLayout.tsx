@@ -1,6 +1,8 @@
 import { Outlet } from 'react-router'
 import Header from './Header'
 import MainWrapper from './MainWrapper'
+import { useHousehold } from '@/features/households/householdsApi'
+import { useHouseholdRoom } from '@/features/realtime/useHouseholdRoom'
 import {
    Calendar,
    ClipboardCheck,
@@ -15,47 +17,49 @@ const navigationItems = [
       label: 'Hearth',
       href: '/',
       Icon: Home,
-      subtitle: 'Schnuffis, together',
+      subtitle: 'Your household at a glance',
    },
    {
       label: 'Calendar',
       href: '/calendar',
       Icon: Calendar,
-      subtitle: 'Schnuffis, together',
+      subtitle: 'Plan the week together',
    },
    {
       label: 'Chores',
       href: '/chores',
       Icon: ClipboardCheck,
-      subtitle: 'Schnuffis, together',
+      subtitle: 'Who does what, and when',
    },
    {
       label: 'Members',
       href: '/members',
       Icon: UserGroup,
-      subtitle: 'Schnuffis, together',
+      subtitle: 'The schnuffis who make this place schnuffelicious',
    },
    {
       label: 'Shopping List',
       href: '/shopping-list',
       Icon: ShoppingCartPlus,
-      subtitle: 'Schnuffis, together',
+      subtitle: 'Never forget the milk again',
    },
    {
       label: 'Settings',
       href: '/settings',
       Icon: Settings,
-      subtitle: 'Schnuffis, together',
+      subtitle: 'Make Hearth feel like home',
    },
 ]
 export type NavigationItem = (typeof navigationItems)[0]
 
 const AppLayout = () => {
+   // Live updates for the household on screen.
+   useHouseholdRoom(useHousehold().id)
    return (
-      <div>
+      <div className='flex min-h-dvh flex-col'>
          <Header navigationItems={navigationItems} />
          <MainWrapper>
-            <Outlet context={{navigationItems}} />
+            <Outlet context={{ navigationItems }} />
          </MainWrapper>
       </div>
    )

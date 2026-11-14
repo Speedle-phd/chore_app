@@ -1,73 +1,29 @@
 import 'dotenv/config'
-import express from 'express'
-import cors from 'cors'
 import mongoose from 'mongoose'
-import pinoHttp from 'pino-http'
-import { Server } from 'socket.io'
 import { createServer } from 'node:http'
-import { errorHandler } from './middleware/errorHandler'
-import { notFound } from './middleware/notFound'
-import { memberRoutes } from './routes/memberRoutes'
-const app = express()
+import { loadEnv } from './config/env'
+import { createApp } from './app'
+import { createSessions, sessionConfig } from './auth/sessions'
+import { createSocketServer } from './socket'
+
+const env = loadEnv()
+const app = createApp(env)
 const httpServer = createServer(app)
-const PORT = Number(process.env.PORT) || 3000
-const MONGODB_URI = process.env.MONGODB_URI
-const corsSettings = {
-   origin: process.env.FRONTEND_URL ?? 'http://localhost:5173',
-   credentials: true,
-   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-}
-const io = new Server(httpServer, {
-   cors: corsSettings,
-})
+// Live updates on the same server and port, authenticated with the same session cookie.
+const io = createSocketServer(httpServer, env, createSessions(sessionConfig(env.COOKIE_SECURE)))
 
-console.log('BACKEND CHANGE DETECTED!')
-
-// Middleware
-app.use(cors(corsSettings))
-app.use(express.json())
-app.use(pinoHttp())
-app.use('/api', memberRoutes)
-app.use(notFound)
-app.use(errorHandler)
-
-// Health check
-app.get('/api/health', (_req, res) => {
-   res.status(200).json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      database:
-         mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-   })
-})
-
-// Example connection handler
-io.on('connection', (socket) => {
-   console.log('Client connected:', socket.id)
-
-   socket.on('disconnect', () => {
-      console.log('Client disconnected:', socket.id)
-   })
-})
-
-// Start server
 async function startServer(): Promise<void> {
-   if (!MONGODB_URI) {
-      throw new Error('MONGODB_URI environment variable is required')
-   }
-
-   await mongoose.connect(MONGODB_URI)
+   await mongoose.connect(env.MONGODB_URI)
    console.log('Connected to MongoDB')
 
-   const server = httpServer.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://localhost:${PORT}`)
+   httpServer.listen(env.PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://localhost:${env.PORT}`)
    })
 
-   // Graceful shutdown
-   const shutdown = async (signal: string): Promise<void> => {
+   // Graceful shutdown: stop accepting connections, close sockets, then the DB.
+   const shutdown = (signal: string): void => {
       console.log(`${signal} received. Shutting down...`)
-
-      server.close(async () => {
+      void io.close(async () => {
          try {
             await mongoose.disconnect()
             console.log('MongoDB disconnected')
@@ -79,8 +35,8 @@ async function startServer(): Promise<void> {
       })
    }
 
-   process.once('SIGINT', () => void shutdown('SIGINT'))
-   process.once('SIGTERM', () => void shutdown('SIGTERM'))
+   process.once('SIGINT', () => shutdown('SIGINT'))
+   process.once('SIGTERM', () => shutdown('SIGTERM'))
 }
 
 startServer().catch((error: unknown) => {

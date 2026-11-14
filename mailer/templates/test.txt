@@ -1,0 +1,5 @@
+Hi {{ name }},
+
+This is a test email from the Hearth mailer. If you can read this, delivery works.
+
+— Hearth

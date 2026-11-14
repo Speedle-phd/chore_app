@@ -1,3 +1,5 @@
+import { isAxiosError } from "axios"
+
 export { cn } from "cn"
 
 export const themeClass = (key: string, theme: string) => {
@@ -18,4 +20,13 @@ export const themeClass = (key: string, theme: string) => {
       return null
    }
    return keys[key]
+}
+export const parseErrorMessage = (error: unknown): string => {
+   if (isAxiosError<{ message?: string }>(error)) {
+      return error.response?.data?.message ?? error.message
+   }
+   if (error instanceof Error) {
+      return error.message
+   }
+   return String(error)
 }

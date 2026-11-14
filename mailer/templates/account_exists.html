@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}You already have an account{% endblock %}
+{% block content %}
+<p>Hi {{ name }},</p>
+<p>Someone tried to sign up for Hearth with this email address, but you already have an account.</p>
+<p style="margin:24px 0;"><a href="{{ login_link }}" style="display:inline-block;background:#477a68;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:600;">Sign in</a></p>
+<p>Forgot your password? <a href="{{ reset_link }}" style="color:#477a68;">Reset it here</a>.</p>
+<p style="font-size:13px;color:#68776e;">If this wasn't you, no action is needed.</p>
+{% endblock %}

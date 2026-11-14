@@ -14,3 +14,8 @@ npm-debug.log*
 
 # Local development
 .DS_Store
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+!.env.production.example

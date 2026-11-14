@@ -1,84 +1,41 @@
 import { ModeToggle } from '@/components/mode-toggle'
-import { useLocation } from 'react-router-dom'
-
-import { useResize } from '@/hooks/useResize'
-import { cn } from '@/lib/utils'
-import { AnimatePresence, motion } from 'motion/react'
+import { NavLink } from 'react-router-dom'
+import { Flame } from 'lucide-react'
 import Navigation from './Navigation'
+import UserMenu from '@/features/auth/UserMenu'
+import HouseholdSwitcher from '@/features/households/HouseholdSwitcher'
 import type { NavigationItem } from './AppLayout'
 
 type HeaderProps = {
    navigationItems: NavigationItem[]
 }
+
 const Header = ({ navigationItems }: HeaderProps) => {
-   const { width } = useResize()
-
-   const location = useLocation()
-
-   const SMALL_SCREEN_WIDTH = 800
-   const path = location && location.pathname
-   const pathElement = navigationItems.find((item) => item.href === path)
-
    return (
-      <div
-         className={cn(
-            'bg-primary-foreground pt-4 flex flex-col px-10 shadow-theme shadow-sm',
-            width < SMALL_SCREEN_WIDTH && 'pb-4',
-         )}
-      >
-         <header className='flex justify-between gap-1'>
-            <div className={cn('my-2 flex gap-4 text-lg font-bold', width >= SMALL_SCREEN_WIDTH && 'mb-4')}>
-               <div
-                  className={cn(
-                     'bg-theme text-primary-foreground',
-                     'grid items-center rounded-md p-2',
-                  )}
-                  style={{ perspective: 400 }}
-               >
-                  <AnimatePresence mode='wait' initial={false}>
-                     {pathElement?.Icon && (
-                        <motion.div
-                           key={location.pathname}
-                           initial={{ rotateY: -90, opacity: 0 }}
-                           animate={{ rotateY: 0, opacity: 1 }}
-                           exit={{ rotateY: 90, opacity: 0 }}
-                           transition={{
-                              duration: 0.25,
-                              ease: 'easeInOut',
-                           }}
-                        >
-                           <pathElement.Icon />
-                        </motion.div>
-                     )}
-                  </AnimatePresence>
-               </div>
+      <header className='sticky top-0 z-40 border-b border-border/60 bg-background/75 backdrop-blur-xl supports-backdrop-filter:bg-background/60'>
+         <div className='mx-auto flex h-16 w-full max-w-6xl items-center gap-4 px-4 sm:px-6'>
+            <NavLink
+               to='/'
+               className='flex items-center gap-2.5 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
+            >
+               <span className='grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm shadow-primary/30'>
+                  <Flame className='size-5' />
+               </span>
+               <span className='hidden text-lg font-semibold tracking-tight sm:inline'>
+                  Hearth
+               </span>
+            </NavLink>
+            <span aria-hidden className='-mx-1 hidden h-5 w-px bg-border sm:block' />
+            <HouseholdSwitcher />
 
-               <div className='flex h-full flex-col justify-center'>
-                  <h1>{pathElement?.label}</h1>
-                  <div className='text-[0.6rem] text-muted-foreground'>
-                     {pathElement?.subtitle}
-                  </div>
-               </div>
-            </div>
+            <Navigation navigationItems={navigationItems} />
 
-            <div className='ml-auto flex items-center gap-6'>
+            <div className='ml-auto flex items-center gap-2 lg:ml-0'>
                <ModeToggle />
-               {width <= SMALL_SCREEN_WIDTH && (
-                  <Navigation
-                     navigationItems={navigationItems}
-                     SMALL_SCREEN_WIDTH={SMALL_SCREEN_WIDTH}
-                  />
-               )}
+               <UserMenu />
             </div>
-         </header>
-
-         {width > SMALL_SCREEN_WIDTH && (
-            <Navigation
-               navigationItems={navigationItems}
-               SMALL_SCREEN_WIDTH={SMALL_SCREEN_WIDTH}
-            />
-         )}
-      </div>
+         </div>
+      </header>
    )
 }
 

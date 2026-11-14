@@ -1,12 +1,9 @@
-
-import { cn } from "@/lib/utils"
 const MainWrapper = ({ children }: { children: React.ReactNode }) => {
- // Replace 'light' with the actual theme if available
-  return (
-    <div className={cn(`m-8 p-4 max-w-[clamp(300px,90vw,900px)] bg-primary-foreground mx-auto max-h-3xl border-2 rounded-sm`, "shadow-sm shadow-theme")}>
-      {children}
-    </div>
-  )
+   return (
+      <main className='mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10'>
+         {children}
+      </main>
+   )
 }
 
 export default MainWrapper
