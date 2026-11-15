@@ -58,6 +58,33 @@ services:
       mailer:
         condition: service_healthy
 
+  # Background jobs (daily reminder e-mails): the backend image with another
+  # command. No port; the heartbeat check replaces the image's HTTP check.
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: "mongodb://${MONGO_INITDB_ROOT_USERNAME:?Set MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD:?Set MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/${MONGO_DATABASE:-chores}?authSource=admin"
+      APP_URL: ${APP_URL:-https://${DOMAIN}}
+      MAILER_URL: http://mailer:8000
+      MAILER_KEY: ${MAILER_KEY:?Set MAILER_KEY (at least 32 characters)}
+    healthcheck:
+      # The worker has no HTTP port: healthy while it keeps finishing runs (heartbeat file).
+      test: ["CMD", "node", "-e", "const s=require('fs').statSync('/tmp/worker-heartbeat'); process.exit(Date.now()-s.mtimeMs < 20*60*1000 ? 0 : 1)"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      mongo:
+        condition: service_healthy
+      mailer:
+        condition: service_healthy
+
   mailer:
     build:
       context: ./mailer

@@ -1,3 +1,4 @@
+import { ReminderDigest } from '../models/reminderDigestModel'
 import type { Types } from 'mongoose'
 import { verifyPassword } from '../auth/password'
 import { clearFailures, lockedForSeconds, recordFailure } from '../auth/throttle'
@@ -143,6 +144,7 @@ export function createAccountService({ households, sessions, avatarDir }: Deps) 
          await Passkey.deleteMany({ userId: user._id })
          await WebAuthnChallenge.deleteMany({ userId: user._id })
          await LoginThrottle.deleteMany({ key: user.email })
+         await ReminderDigest.deleteMany({ userId: user._id })
          await sessions.endAllForUser(user._id)
          await deleteAvatar(user.avatarUrl, avatarDir)
          await user.deleteOne()

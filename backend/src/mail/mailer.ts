@@ -10,6 +10,7 @@ export type MailTemplate =
    | 'invitation'
    | 'passkey_added'
    | 'passkey_removed'
+   | 'reminder_digest'
 
 export type SendMail = (
    template: MailTemplate,

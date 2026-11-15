@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Your reminders{% endblock %}
+{% block content %}
+<p>Hi {{ name }},</p>
+<p>Here's what you asked to be reminded of for {{ date }}.</p>
+{% for group in groups %}
+<h2 style="margin:24px 0 8px;font-size:15px;color:#24332e;">{{ group.household }}</h2>
+{% if group.today %}
+<p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#477a68;text-transform:uppercase;letter-spacing:0.04em;">Today</p>
+<ul style="margin:0 0 12px;padding-left:20px;">
+  {% for line in group.today %}<li><strong>{{ line.title }}</strong> <span style="color:#68776e;">· {{ line.when }}</span></li>{% endfor %}
+</ul>
+{% endif %}
+{% if group.soon %}
+<p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#477a68;text-transform:uppercase;letter-spacing:0.04em;">Coming up</p>
+<ul style="margin:0 0 12px;padding-left:20px;">
+  {% for line in group.soon %}<li><strong>{{ line.title }}</strong> <span style="color:#68776e;">· {{ line.when }}</span></li>{% endfor %}
+</ul>
+{% endif %}
+{% endfor %}
+<p style="margin:24px 0;"><a href="{{ link }}" style="display:inline-block;background:#477a68;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:600;">Manage reminders</a></p>
+<p style="font-size:13px;color:#68776e;">You get one email a day at 8:00, only when something is due. To stop, remove your reminders in Settings.</p>
+{% endblock %}

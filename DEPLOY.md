@@ -6,11 +6,18 @@ Production runs from `compose.prod.yaml`. Development keeps using `compose.yaml`
 ```
 internet ──443/80──► web (Caddy: app + HTTPS) ──► backend (Node) ──► mongo
                                                        └──► mailer (Flask) ──► your SMTP provider
+                                 worker (Node, same image) ──► mongo, mailer
 ```
 
 Only `web` is reachable from outside. Caddy gets and renews HTTPS certificates
 automatically, serves the built app and forwards `/api`, `/uploads` and
 `/socket.io` (WebSocket) to the backend.
+
+`worker` runs the background jobs: the daily reminder e-mails (one digest per
+person at 08:00 in their time zone). It is the backend image started with
+`node dist/worker.js`, has no port, and reports healthy while it keeps finishing
+its runs (every 15 minutes). Running it twice is safe: each person's day is
+claimed in the database and sent once. Logs: `docker compose -f compose.prod.yaml logs worker`.
 
 ## Requirements
 

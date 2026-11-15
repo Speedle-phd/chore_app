@@ -1,15 +1,21 @@
 # Hearth: handoff
 
-Last updated: 2026-11-15. Start here when resuming. Plans: [plans/calendar-chores.md](plans/calendar-chores.md) (next) and [plans/login-and-households.md](plans/login-and-households.md) (done).
+Last updated: 2026-11-16. Start here when resuming. Plans: [plans/calendar-chores.md](plans/calendar-chores.md) (in progress) and [plans/login-and-households.md](plans/login-and-households.md) (done).
 
 ## Where we are
 
-- **Done:** UI refresh, members → **households** (roles, profiles without login, invitations, handle search), **accounts** (email + password, verification, reset, sessions, throttling), **passkeys**, **Account page**, **live updates** (Socket.IO) incl. **online dot** on member cards, **production setup** (`compose.prod.yaml`, Caddy, DEPLOY.md).
-- **Calendar phases 1 + 2 done** (uncommitted): models, recurrence expansion and series edits in `backend/src/domain/`, calendar read + write API, calendar page with create/edit dialog, repeat editor, drag/resize with "this / following / all", a non-drag "Change this occurrence" form, delete with scope, live `'calendar'` topic.
-- **Calendar phase 3 done** (uncommitted): chore workflow. Mark done/skipped/undo (for yourself or others, see rules), "any one of them" vs "each of them", taking turns, "repeat after it's done", overdue, a Chores page (To do: Overdue / Today / Next 7 days; All chores) and an overdue badge in the navigation.
-- **Calendar phase 4 done** (uncommitted): member birthdays (Account page for yourself, profile form for people without a login; shown on member cards and as read-only yearly entries "Ada turns 36"), manual birthday/vacation entries with sensible defaults, and vacation clashes on chores with a suggested substitute (per card, in details, "Accept all").
-- **Next:** **phase 5** (stats & motivation) of [plans/calendar-chores.md](plans/calendar-chores.md).
-- Last commit: `2977b69` (presence + docs). Secrets are git-ignored: `.env`, `.env.production`, `mailer/.env`.
+- **Done before the calendar:** UI refresh, **households** (roles, profiles without login, invitations, handle search), **accounts** (email + password, verification, reset, sessions, throttling), **passkeys**, **Account page**, **live updates** (Socket.IO, online dot), **production setup** (`compose.prod.yaml`, Caddy, DEPLOY.md).
+- **Calendar + chores, committed** (last commit `4ae1042`):
+  - phase 1–2: models, recurrence expansion and series edits (`backend/src/domain/`), calendar API, calendar page with create/edit dialog, repeat editor, drag/resize with "this / following / all", "Change this occurrence" form, delete with scope, live `'calendar'` topic;
+  - phase 3: chore workflow (done/skipped/undo, "any one" vs "each of them", taking turns, "repeat after it's done", overdue, Chores page, nav overdue badge);
+  - phase 4: member birthdays, birthday entries with birth year (age), vacations with clash suggestions, themed date/time pickers and checkbox.
+- **Uncommitted since `4ae1042`** (all tested, see below):
+  - phase 5: Chores → Stats (tiles, activity chart, leaderboard/fair share, streaks, badges, per-chore table), Settings → Motivation switches;
+  - calendar filters (types + people);
+  - reminder subscriptions ("Remind me", "every birthday", Settings → Reminders with a 30-day preview);
+  - phase 7: **`worker`** container (backend image, `src/worker.ts`) sending one reminder digest per person per day at 08:00 local through the mailer; accounts save their time zone from the browser.
+- **Next:** commit, then **phase 6** (iCal subscribe feed + `.ics` import) of [plans/calendar-chores.md](plans/calendar-chores.md).
+- Secrets are git-ignored: `.env`, `.env.production`, `mailer/.env`.
 
 ## Architecture
 
@@ -17,6 +23,7 @@ Last updated: 2026-11-15. Start here when resuming. Plans: [plans/calendar-chore
 browser ── Vite dev server :5173 (prod: Caddy :443) ── /api, /uploads, /socket.io ──► backend :3000 (Express 5, Socket.IO)
                                                                                   ├─► mongo (Mongoose)
                                                                                   └─► mailer :8000 (Flask) ─► SMTP (dev: Mailpit :8025)
+worker (same image as backend, no port; daily reminder digests) ─► mongo, mailer
 ```
 
 | Area | Where |
@@ -27,12 +34,16 @@ browser ── Vite dev server :5173 (prod: Caddy :443) ── /api, /uploads, /
 | Auth (sessions, password, passkeys, throttle, tokens, audit) | `backend/src/auth/` |
 | Households, members, profiles, permissions | `backend/src/households/` (`permissions.ts` = pure rules) |
 | Calendar (routes, schemas, service, views) | `backend/src/calendar/`, models `calendarItemModel.ts`, `occurrenceModel.ts` |
-| Pure domain logic (no I/O, time passed in) | `backend/src/domain/` (`recurrence.ts`: expansion, span, RRULE checks, occurrence index, after-completion history; `seriesEdits.ts`: local-time conversion, shifting, splitting a series; `chores.ts`: assignees/rotation, state, overdue, next due; `birthdays.ts`: parse/validate, dates per year; `vacations.ts`: who is away, clash + substitute) |
+| Pure domain logic (no I/O, time passed in) | `backend/src/domain/` (`recurrence.ts`: expansion, span, RRULE checks, occurrence index, after-completion history; `seriesEdits.ts`: local-time conversion, shifting, splitting a series; `chores.ts`: assignees/rotation, state, overdue, next due; `birthdays.ts`: parse/validate, dates per year; `vacations.ts`: who is away, clash + substitute; `stats.ts` + `badges.ts`: points, fair share, streaks, badges; `reminders.ts`: which reminders are due when) |
 | Invitations, handle search, account | `backend/src/invitations/`, `backend/src/account/` |
+| Stats (service on top of the calendar listing) | `backend/src/calendar/statsService.ts` |
+| Reminder subscriptions | `backend/src/reminders/`, model `reminderModel.ts` |
+| Background worker (daily digest) | `backend/src/worker.ts` → `reminders/digestJob.ts`, `domain/digest.ts`, model `reminderDigestModel.ts`; template `mailer/templates/reminder_digest.*` |
 | Live updates | `backend/src/socket/{index,realtime,presence,contracts}.ts` |
 | Frontend data (TanStack Query) | `frontend/src/features/*/…Api.ts`, `frontend/src/api/client.ts` |
 | Guards | `features/auth/AuthGuards.tsx` (RequireAuth/GuestOnly), `features/households/RequireHousehold.tsx` |
 | Calendar (client) | `frontend/src/features/calendar/`: `calendarApi.ts` (hooks), `recurrence.ts` (RRULE ↔ editor), `time.ts`, `ItemDialog`, `RecurrenceEditor`, `MemberPicker`, `OccurrenceDialog`, `ChangeOccurrenceDialog`, `ScopeDialog`; page `routes/Calendar.tsx` on `components/event-calendar.tsx` |
+| Stats & reminders (client) | `features/stats/` (`StatsView`, `ActivityChart`, `MotivationSection`, `periods.ts`), `features/reminders/` (`RemindMe`, `RemindersSection`); filters `features/calendar/CalendarFilters.tsx` |
 | Chores (client) | `routes/Chores.tsx`, `features/chores/` (`ChoreCard`, `ChoreActions`, `format.ts`, `useMyOverdueCount`); client mirror of the state rule in `features/calendar/choreState.ts` |
 | Live updates (client) | `frontend/src/features/realtime/` (`RealtimeConnection`, `useHouseholdRoom`, `presence.ts`) |
 | Mail templates | `mailer/templates/` + `mailer/templates_registry.py` (allow-list) |
@@ -54,12 +65,13 @@ docker compose up -d                       # dev: app http://localhost:5173, Mai
 docker compose exec backend npm test       # ALL backend tests (integration tests need Mongo → run in the container)
 cd backend && npm run test:unit            # unit tests on the host (no DB)
 docker compose exec mailer pytest -q
+docker compose logs -f worker                # reminder worker (runs on start, then every 15 min)
 cd frontend && npx tsc -b && npx oxlint src && npm test && npx vite build   # npm test = Vitest (pure helpers)
 ```
 
-Current results (2026-11-16): backend **338 passed** (22 files; host `test:unit` 172), frontend unit **62 passed**, mailer **16 passed** (not re-run this session), frontend typecheck/build clean, lint = 6 pre-existing warnings (shadcn files, theme-provider, `AvatarField` preview effect).
+Current results (2026-11-16): backend **387 passed** (28 files; host `test:unit` 196), frontend unit **71 passed**, mailer **17 passed**, frontend typecheck/build clean, lint = 6 pre-existing warnings (shadcn files, theme-provider, `AvatarField` preview effect).
 
-Browser verification has been done with `playwright-core` + Edge (+ `@axe-core/playwright`) from a scratch folder (not in the repo); the repo has no Playwright setup yet. Calendar phase 1: month/week/list views, a moved occurrence, paging, phone (list view, no horizontal scroll), light + dark: all pass. Phase 2 (two users, 24 checks): create via dialog, live update in the other browser, drag one occurrence (this), resize (all), keyboard Enter → details → change (following), member may skip one occurrence but not delete the series, phone + dark dialog, axe on every dialog: all pass. Phase 4 (21 checks): account and profile birthdays, member cards, read-only birthday entries (not draggable), birthday/vacation defaults, clash icon, banner + "Give to …" + "Accept all", phone dark. Chores (30 checks, two users + a child profile): agenda sections, nav badge, done on an after-completion chore moves it, "each of them" partial/live, member can't mark another account, rotation order, calendar status icons, chore dialog (after-completion, turns, no scrollbar), All chores, phone dark: all pass. Feedback round (16 checks): slot click in week/day, no snap-back after drop (sampled per frame), resize from start, avatars, dialog without scrollbar at 900/768 px, dark picker icons: all pass. Tips: scroll events into view before mouse drags; grab events in the middle (top/bottom 4 px are resize grips); navigate to a fixed week, not "next" (tests broke when the date passed midnight); also test clicks on empty slots (the selection placeholder has no entry data). Known a11y gap, app-wide and pre-existing: light theme `--muted-foreground` is 4.41:1 (needs 4.5), nav labels 4.21:1, shadcn inactive tab triggers 3.61:1; dark passes.
+Browser verification has been done with `playwright-core` + Edge (+ `@axe-core/playwright`) from a scratch folder (not in the repo); the repo has no Playwright setup yet. Calendar phase 1: month/week/list views, a moved occurrence, paging, phone (list view, no horizontal scroll), light + dark: all pass. Phase 2 (two users, 24 checks): create via dialog, live update in the other browser, drag one occurrence (this), resize (all), keyboard Enter → details → change (following), member may skip one occurrence but not delete the series, phone + dark dialog, axe on every dialog: all pass. Phase 7: end to end in dev, reminders due today → the worker sent exactly one digest through the real mailer to Mailpit (restarting the worker didn't resend); the browser saved its zone once on visit. Phase 5 (23 checks): filters (type/person, reload), remind-me popover + settings + "coming up", stats tiles/chart keyboard tooltip/leaderboard/badges, motivation switches (admin vs member), phone plum-noir; all earlier suites still pass (24/16/30/21/11/16). Phase 4 (21 checks): account and profile birthdays, member cards, read-only birthday entries (not draggable), birthday/vacation defaults, clash icon, banner + "Give to …" + "Accept all", phone dark. Chores (30 checks, two users + a child profile): agenda sections, nav badge, done on an after-completion chore moves it, "each of them" partial/live, member can't mark another account, rotation order, calendar status icons, chore dialog (after-completion, turns, no scrollbar), All chores, phone dark: all pass. Feedback round (16 checks): slot click in week/day, no snap-back after drop (sampled per frame), resize from start, avatars, dialog without scrollbar at 900/768 px, dark picker icons: all pass. Tips: scroll events into view before mouse drags; grab events in the middle (top/bottom 4 px are resize grips); navigate to a fixed week, not "next" (tests broke when the date passed midnight); also test clicks on empty slots (the selection placeholder has no entry data). Known a11y gap, app-wide and pre-existing: light theme `--muted-foreground` is 4.41:1 (needs 4.5), nav labels 4.21:1, shadcn inactive tab triggers 3.61:1; dark passes.
 
 ## Decisions
 
@@ -96,6 +108,10 @@ App choices (with reason):
 - Taking turns needs a repeating chore (fixed repeat or after completion); enforced in the dialog and by the server.
 - UI kit: themed `components/ui/checkbox.tsx` (Base UI; no `dark:bg-*` on it, that would outrank the checked fill), `popover.tsx` (z-60, above dialogs), `date-picker.tsx` (month grid, WAI-ARIA date-picker keyboard: arrows/Home/End/PageUp/PageDown/Enter/Esc; opens with the chosen day focused via `initialFocus`), `time-picker.tsx` (type "19:30"/"7.30pm"/"730" or pick from 15-minute list; viewer's 12/24 h). No native date/time inputs remain. Pure helpers in `lib/datetime.ts`. Scrollbars are slim and theme-coloured app-wide (`index.css`, `*` rule).
 - Birthday entries: the dialog shows day/month/(year) instead of times and repeat (always all-day, yearly, no assignees). With a year, `birthYear` is stored and the start is the birth date; occurrences carry `age` ("Oma · 83"). 29 February uses `FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=-1` (28th in other years). Without a year the start year is 2000 (a leap year).
+- Stats (app choices): points = effort per done chore ("any one of them": first doer only; "each of them": every assignee's part); on time = done before the occurrence's end; missed = unsettled after its end; fair share = equal split among people with chores in the period; streak = consecutive days with a done chore (current ends today/yesterday). Stats are computed from the occurrence listing (history loaded from the household's start in 365-day chunks); nothing extra is stored. Badges are derived (plan's `Badge` model not needed): first/10/50/100 done, 20 on time, 5 big jobs, 5 stand-ins, 7/30-day streaks. One-hue activity chart (`--chart-1`, ≥3:1 on the card in all themes; light theme's green fails the validator's chroma floor, irrelevant for one series), table view, keyboard tooltips. Household `motivation { leaderboard, badges, streaks }` (owners/admins); plain stats always on.
+- Reminder subscriptions (app choices): per member with a login; targets `item` (any entry), `member` (birthday from a profile) or `allBirthdays`; lead days 0/1/7 offered (API allows 0–30); one per target; private (others get 404). Overlapping subscriptions plan one reminder. Removed with the entry, with the people involved, and with the household; copied to the new part when a series is split. `GET …/reminders/upcoming?tz&days` = the plan the phase-7 scheduler will send (channel `email`).
+- E-mail reminders (user decisions 2026-11-16): separate `worker` container (not inside the web server); one digest per person per day at 08:00 local; missed days are dropped; test mail goes to Mailpit. App choices: the worker wakes every 15 min (a fixed cron time can't serve several zones); each person's day is a `ReminderDigest` doc (unique user + date): claimed atomically ("sending", 5-min lock), then "sent", or "failed" and retried up to 3 times that day; days with nothing due are recorded as sent with count 0 (no mail); unverified addresses are skipped; unknown zone → Europe/Berlin until the next visit saves it (`useSyncTimezone`, silent). Health: heartbeat file `/tmp/worker-heartbeat` (< 20 min old); the prod image's HTTP health check is overridden for the worker. No unsubscribe link yet (the mail links to Settings → Reminders).
+- Calendar filters: kinds + people chips above the calendar (they are also the colour legend), server-side via `kinds`/`memberIds`, stored per household in localStorage.
 - Live updates: notices that arrive while one of our own writes is in flight are held and applied when it settles (`Realtime.tsx`), so a refetch can't flip an optimistic update back.
 - Effort 1–5 is stored now, used for stats in phase 5.
 - Birthdays (app choices): stored as `YYYY-MM-DD` or `--MM-DD` (year unknown, vCard style) on `User.birthday` (set by the person, Account page) and `Membership.profile.birthday` (set by admins, profile form); not in the future, not before 1900; 29 Feb shows on 28 Feb in non-leap years. Shown to fellow household members (cards, calendar). They are virtual calendar instances (`source: 'member'`, `itemId: ''`), not entries; edit them in the profile. Manual birthdays for non-members are ordinary `birthday` entries (all-day, yearly by default).
@@ -117,7 +133,8 @@ App choices (with reason):
 
 ## Open / next
 
-1. **Commit** calendar phases 1–4.
-2. **Phase 5** (stats & motivation): see [plans/calendar-chores.md](plans/calendar-chores.md). Data is ready: `Occurrence.completions` (who, when, done/skipped) and `chore.effort`. Choose the chart library then (dataviz skill). Keep the write rules: validate RRULEs with `rruleProblem()`, store local times, recompute `rangeStart`/`rangeEnd` with `seriesSpan(item, overrides)` after every item or occurrence write.
-3. Optional: fix the light-theme contrast tokens above (one token change, affects every page).
-4. Later, optional: Playwright tests in the repo (currently only ad-hoc scripts), Redis adapter if ever scaling out.
+1. **Commit** phase 5 + filters + reminder subscriptions + phase 7.
+2. **Phase 6** (iCal): subscribe feed (`ical-generator`, token in `IcalFeed`, hashed) and `.ics` import with preview (`node-ical`); verify both libraries' maintenance before installing.
+3. Optional: one-click unsubscribe link in the digest (signed token), an "e-mail reminders" on/off switch per account.
+4. Known, pre-existing contrast gaps (user's call to fix; token changes affect every page): light-theme muted text 4.41:1, nav labels 4.21:1, shadcn tab triggers 3.61:1, red "Delete household" button 3.88:1.
+5. Later, optional: Playwright tests in the repo (browser checks are ad-hoc scratch scripts so far), Redis adapter if ever scaling out.

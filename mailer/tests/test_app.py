@@ -125,3 +125,28 @@ def test_every_registered_template_has_both_parts():
     for name in mailer_app.TEMPLATES:
         for ext in ("html", "txt"):
             assert os.path.exists(os.path.join(mailer_app.BASE_DIR, "templates", f"{name}.{ext}"))
+
+
+def test_reminder_digest_lists_groups_and_escapes_titles(client):
+    data = {
+        "name": "Ada",
+        "date": "Monday 16 November",
+        "count": 2,
+        "link": "http://localhost:5173/settings",
+        "groups": [
+            {
+                "household": "Home",
+                "today": [{"title": "<i>Oma</i> (80)", "when": "all day"}],
+                "soon": [{"title": "Dentist", "when": "tomorrow, Tue 17 Nov at 09:30"}],
+            }
+        ],
+    }
+    res = send(client, {"template": "reminder_digest", "to": "a@b.test", "data": data})
+    assert res.status_code == 202
+    (message,) = FakeSMTP.sent
+    assert message["Subject"] == "Your Hearth reminders for Monday 16 November"
+    html = message.get_body(("html",)).get_content()
+    text = message.get_body(("plain",)).get_content()
+    assert "&lt;i&gt;Oma&lt;/i&gt; (80)" in html and "<i>Oma</i>" not in html
+    assert "Today:\n- <i>Oma</i> (80) · all day" in text
+    assert "Coming up:\n- Dentist · tomorrow, Tue 17 Nov at 09:30" in text

@@ -33,4 +33,7 @@ TEMPLATES: dict[str, Template] = {
     "passkey_removed": Template(
         subject="A passkey was removed from your Hearth account", required=("name", "passkey", "link")
     ),
+    "reminder_digest": Template(
+        subject="Your Hearth reminders for {date}", required=("name", "date", "groups", "count", "link")
+    ),
 }

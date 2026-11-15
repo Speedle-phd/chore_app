@@ -25,3 +25,8 @@ export const birthdaySchema = z
 export const profileSchema = z.object({ fname: personName, lname: personName, birthday: birthdaySchema.optional() })
 export const roleSchema = z.object({ role: z.enum(ROLES) })
 export const objectId = z.string().refine(isValidObjectId, 'Invalid id')
+export const motivationSchema = z
+   .object({ leaderboard: z.boolean(), badges: z.boolean(), streaks: z.boolean() })
+   .partial()
+   .strict()
+   .refine((m) => Object.keys(m).length > 0, 'Nothing to change.')

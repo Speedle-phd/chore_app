@@ -3,6 +3,7 @@ import Header from './Header'
 import MainWrapper from './MainWrapper'
 import { useHousehold } from '@/features/households/householdsApi'
 import { useHouseholdRoom } from '@/features/realtime/useHouseholdRoom'
+import { useSyncTimezone } from '@/features/account/useSyncTimezone'
 import {
    Calendar,
    ClipboardCheck,
@@ -55,6 +56,7 @@ export type NavigationItem = (typeof navigationItems)[0]
 const AppLayout = () => {
    // Live updates for the household on screen.
    useHouseholdRoom(useHousehold().id)
+   useSyncTimezone()
    return (
       <div className='flex min-h-dvh flex-col'>
          <Header navigationItems={navigationItems} />

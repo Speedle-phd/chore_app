@@ -1,0 +1,15 @@
+Hi {{ name }},
+
+Here's what you asked to be reminded of for {{ date }}.
+{% for group in groups %}
+{{ group.household }}
+{% if group.today %}Today:
+{% for line in group.today %}- {{ line.title }} · {{ line.when }}
+{% endfor %}{% endif %}{% if group.soon %}Coming up:
+{% for line in group.soon %}- {{ line.title }} · {{ line.when }}
+{% endfor %}{% endif %}{% endfor %}
+Manage reminders: {{ link }}
+
+You get one email a day at 8:00, only when something is due. To stop, remove your reminders in Settings.
+
+— Hearth

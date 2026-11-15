@@ -8,6 +8,8 @@ import PageHeader from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import SettingsSection from '@/components/SettingsSection'
 import HouseholdNameForm from '@/features/households/HouseholdNameForm'
+import { RemindersSection } from '@/features/reminders/RemindersSection'
+import { MotivationSection } from '@/features/stats/MotivationSection'
 import {
    useDeleteHousehold,
    useHousehold,
@@ -57,6 +59,20 @@ const Settings = () => {
                ) : (
                   <p className='text-sm text-muted-foreground'>Only owners and admins can rename the household.</p>
                )}
+            </SettingsSection>
+
+            <SettingsSection
+               title='Motivation'
+               description='Points and statistics are always there; these playful extras can be switched off for everyone.'
+            >
+               <MotivationSection household={household} />
+            </SettingsSection>
+
+            <SettingsSection
+               title='Reminders'
+               description='Get reminded of birthdays and events. Only you see your reminders.'
+            >
+               <RemindersSection householdId={household.id} />
             </SettingsSection>
 
             <SettingsSection title='Leave' description='Stop being part of this household. Someone can invite you again later.'>

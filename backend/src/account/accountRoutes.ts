@@ -6,6 +6,7 @@ import { userView } from '../auth/authViews'
 import type { Sessions } from '../auth/sessions'
 import { BadRequestError, ConflictError, TooManyRequestsError, UnauthorizedError } from '../errors'
 import upload from '../middleware/avatarUpload'
+import { isTimeZone } from '../domain/recurrence'
 import { birthdaySchema } from '../households/householdSchemas'
 import { User } from '../models/userModel'
 import type { AccountService } from './accountService'
@@ -25,6 +26,7 @@ const updateSchema = z
       handle: handleSchema.nullable().optional(),
       findableByHandle: z.boolean().optional(),
       birthday: birthdaySchema.nullable().optional(),
+      timezone: z.string().max(64).refine(isTimeZone, 'Unknown time zone.').optional(),
    })
    .strict()
 const deleteSchema = z.object({ password: z.string().min(1, 'Enter your password.').max(256) })
@@ -48,6 +50,7 @@ export function createAccountRoutes(account: AccountService, sessions: Sessions)
 
       if (input.handle !== undefined) user.handle = input.handle
       if (input.findableByHandle !== undefined) user.findableByHandle = input.findableByHandle
+      if (input.timezone !== undefined) user.timezone = input.timezone
       // Nobody can find you without a handle.
       if (!user.handle) user.findableByHandle = false
       try {

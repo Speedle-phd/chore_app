@@ -1,12 +1,15 @@
 import { Router, type Request } from 'express'
 import { createCalendarRoutes } from '../calendar/calendarRoutes'
+import { createStatsService } from '../calendar/statsService'
 import type { CalendarService } from '../calendar/calendarService'
+import { createReminderRoutes } from '../reminders/reminderRoutes'
+import type { ReminderService } from '../reminders/reminderService'
 import { createHouseholdInvitationRoutes } from '../invitations/invitationRoutes'
 import type { InvitationService } from '../invitations/invitationService'
 import { UnauthorizedError } from '../errors'
 import upload from '../middleware/avatarUpload'
 import type { MembershipType } from '../models/membershipModel'
-import { householdNameSchema, profileSchema, roleSchema } from './householdSchemas'
+import { householdNameSchema, motivationSchema, profileSchema, roleSchema } from './householdSchemas'
 import type { HouseholdService } from './householdService'
 import { requireMembership } from './requireMembership'
 
@@ -25,6 +28,7 @@ export function createHouseholdRoutes(
    households: HouseholdService,
    invitations: InvitationService,
    calendar: CalendarService,
+   reminders: ReminderService,
 ) {
    const router = Router()
 
@@ -47,6 +51,9 @@ export function createHouseholdRoutes(
       const { name } = householdNameSchema.parse(req.body)
       res.json(await households.rename(me(req), name))
    })
+   one.patch('/motivation', async (req, res) => {
+      res.json(await households.setMotivation(me(req), motivationSchema.parse(req.body)))
+   })
    one.delete('/', async (req, res) => {
       await households.remove(me(req))
       res.status(204).end()
@@ -61,7 +68,8 @@ export function createHouseholdRoutes(
    })
 
    one.use('/invitations', createHouseholdInvitationRoutes(invitations))
-   one.use(createCalendarRoutes(calendar))
+   one.use(createCalendarRoutes(calendar, createStatsService(calendar)))
+   one.use('/reminders', createReminderRoutes(reminders))
 
    one.get('/members', async (req, res) => {
       res.json(await households.listMembers(me(req)))

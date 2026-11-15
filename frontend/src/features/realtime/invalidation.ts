@@ -7,7 +7,7 @@ export function householdKeys(householdId: string, topics: HouseholdTopic[]): Qu
    for (const topic of topics) {
       if (topic === 'members') keys.push(['household', householdId, 'members'], ['households']) // counts in the switcher
       if (topic === 'invitations') keys.push(['household', householdId, 'invitations'])
-      if (topic === 'household') keys.push(['households'])
+      if (topic === 'household') keys.push(['households'], ['household', householdId, 'stats'])
       // Prefix: every loaded range and every open entry of this household's calendar.
       if (topic === 'calendar') {
          keys.push(
@@ -15,6 +15,9 @@ export function householdKeys(householdId: string, topics: HouseholdTopic[]): Qu
             ['household', householdId, 'calendar-item'],
             ['household', householdId, 'calendar-items'],
             ['household', householdId, 'chores'],
+            // What reminders will send depends on the entries.
+            ['household', householdId, 'reminders'],
+            ['household', householdId, 'stats'],
          )
       }
    }

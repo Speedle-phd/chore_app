@@ -81,8 +81,13 @@ export type OccurrenceRef = { itemId: string; originalStart: string }
 
 export type CalendarRange = { from: string; to: string }
 
-export const calendarKey = (hid: string, range?: CalendarRange) =>
-   range ? (['household', hid, 'calendar', range.from, range.to] as const) : (['household', hid, 'calendar'] as const)
+/** Server-side filters; empty = no filter. */
+export type CalendarFilter = { kinds?: CalendarKind[]; memberIds?: string[] }
+
+export const calendarKey = (hid: string, range?: CalendarRange, filter?: CalendarFilter) =>
+   range
+      ? (['household', hid, 'calendar', range.from, range.to, filter?.kinds?.join() ?? '', filter?.memberIds?.join() ?? ''] as const)
+      : (['household', hid, 'calendar'] as const)
 export const calendarItemKey = (hid: string, id: string) => ['household', hid, 'calendar-item', id] as const
 export const calendarItemsKey = (hid: string, kind: CalendarKind) => ['household', hid, 'calendar-items', kind] as const
 export const choresKey = (hid: string) => ['household', hid, 'chores'] as const
@@ -99,13 +104,18 @@ const itemsUrl = (hid: string) => `/households/${hid}/calendar-items`
 const occurrenceUrl = (hid: string, { itemId, originalStart }: OccurrenceRef) =>
    `${itemsUrl(hid)}/${itemId}/occurrences/${encodeURIComponent(originalStart)}`
 
-export function useCalendar(hid: string, range: CalendarRange | null) {
+export function useCalendar(hid: string, range: CalendarRange | null, filter: CalendarFilter = {}) {
    return useQuery({
-      queryKey: range ? calendarKey(hid, range) : calendarKey(hid),
+      queryKey: range ? calendarKey(hid, range, filter) : calendarKey(hid),
       queryFn: async () =>
          (
             await api.get<CalendarInstance[]>(`/households/${hid}/calendar`, {
-               params: { ...range, tz: viewerTimeZone() },
+               params: {
+                  ...range,
+                  tz: viewerTimeZone(),
+                  ...(filter.kinds?.length ? { kinds: filter.kinds.join(',') } : {}),
+                  ...(filter.memberIds?.length ? { memberIds: filter.memberIds.join(',') } : {}),
+               },
             })
          ).data,
       enabled: range !== null,

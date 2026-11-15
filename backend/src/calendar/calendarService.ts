@@ -39,6 +39,7 @@ import { canDeleteCalendarItem, canMarkChoreFor } from '../households/permission
 import { CalendarItem, type CalendarItemType } from '../models/calendarItemModel'
 import { Membership, type MembershipType } from '../models/membershipModel'
 import { Occurrence } from '../models/occurrenceModel'
+import { Reminder } from '../models/reminderModel'
 import { User } from '../models/userModel'
 import { realtime } from '../socket/realtime'
 import type { CalendarQuery, ItemInput, OccurrenceChange, Scope, StatusInput } from './calendarSchemas'
@@ -379,6 +380,7 @@ export function createCalendarService() {
          const item = await findItem(me, id)
          assertDeletable(me, item)
          await Occurrence.deleteMany({ itemId: item._id })
+         await Reminder.deleteMany({ 'target.itemId': item._id })
          await item.deleteOne()
          changed(me)
       },
@@ -503,6 +505,13 @@ export function createCalendarService() {
          await applySpan(tail, tailOverrides.map(overrideOf))
          await tail.save()
          if (tailOverrides.length) await Occurrence.insertMany(tailOverrides)
+         // "Remind me" subscriptions follow the series into its new part.
+         const subscriptions = await Reminder.find({ 'target.itemId': item._id }).lean()
+         if (subscriptions.length) {
+            await Reminder.insertMany(
+               subscriptions.map(({ _id, ...r }) => ({ ...r, target: { ...r.target, itemId: tail._id } })),
+            )
+         }
 
          const kept = overrides.filter((o) => compareLocal(allDay, o.originalStart, original) < 0)
          item.set({
@@ -531,6 +540,7 @@ export function createCalendarService() {
          if (!rrule || (scope === 'following' && compareLocal(item.allDay, original, item.start) <= 0)) {
             assertDeletable(me, item)
             await Occurrence.deleteMany({ itemId: item._id })
+            await Reminder.deleteMany({ 'target.itemId': item._id })
             await item.deleteOne()
          } else if (scope === 'this') {
             item.recurrence.exdates = [...new Set([...timing.exdates, original])]

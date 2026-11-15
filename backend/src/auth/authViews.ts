@@ -12,5 +12,6 @@ export const userView = (user: UserType) => ({
    handle: user.handle ?? null,
    avatarUrl: user.avatarUrl ?? null,
    birthday: user.birthday ?? null,
+   timezone: user.timezone ?? null,
    findableByHandle: Boolean(user.findableByHandle),
 })

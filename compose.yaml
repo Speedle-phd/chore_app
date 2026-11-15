@@ -48,6 +48,36 @@ services:
       retries: 5
       start_period: 20s
 
+  # Background jobs: the daily reminder e-mails. Same code and image as the
+  # backend, other entrypoint (src/worker.ts); no port.
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    working_dir: /app
+    command: npm run dev:worker
+    volumes:
+      - ./backend:/app
+      - backend_node_modules:/app/node_modules
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/${MONGO_DATABASE}?authSource=admin"
+      APP_URL: ${APP_URL:-http://localhost:5173}
+      MAILER_URL: http://mailer:8000
+      MAILER_KEY: ${MAILER_KEY:?Set MAILER_KEY in .env (at least 32 characters)}
+    healthcheck:
+      # The worker has no HTTP port: healthy while it keeps finishing runs (heartbeat file).
+      test: ["CMD", "node", "-e", "const s=require('fs').statSync('/tmp/worker-heartbeat'); process.exit(Date.now()-s.mtimeMs < 20*60*1000 ? 0 : 1)"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      mongo:
+        condition: service_healthy
+      mailer:
+        condition: service_healthy
+
   # Internal email service: no published port, only the backend can reach it.
   mailer:
     build:

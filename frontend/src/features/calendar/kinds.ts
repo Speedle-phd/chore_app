@@ -7,3 +7,5 @@ export const KINDS: Record<CalendarKind, { one: string; label: string; color: st
    birthday: { one: 'Birthday', label: 'Birthdays', color: 'var(--chart-4)' },
    vacation: { one: 'Vacation', label: 'Vacations', color: 'var(--chart-5)' },
 }
+
+export const ALL_KINDS = Object.keys(KINDS) as CalendarKind[]

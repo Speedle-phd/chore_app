@@ -9,6 +9,8 @@ export type Household = {
    name: string
    role: Role
    memberCount: number
+   /** Playful parts of the chore stats (owners/admins switch them). */
+   motivation: { leaderboard: boolean; badges: boolean; streaks: boolean }
    createdAt: string
 }
 
@@ -58,6 +60,18 @@ function useSetLastHousehold() {
    const queryClient = useQueryClient()
    return (id: string | null) =>
       queryClient.setQueryData<User | null>(ME_KEY, (me) => (me ? { ...me, lastHouseholdId: id } : me))
+}
+
+export function useSetMotivation(hid: string) {
+   const queryClient = useQueryClient()
+   return useMutation({
+      mutationFn: async (input: Partial<Household['motivation']>) =>
+         (await api.patch<Household>(`/households/${hid}/motivation`, input)).data,
+      onSuccess: (household) => {
+         queryClient.setQueryData<Household[]>(HOUSEHOLDS_KEY, (list) => list?.map((h) => (h.id === household.id ? household : h)))
+         void queryClient.invalidateQueries({ queryKey: ['household', hid, 'stats'] })
+      },
+   })
 }
 
 export function useCreateHousehold() {

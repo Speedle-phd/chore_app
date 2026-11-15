@@ -20,12 +20,14 @@ import {
 } from '@/features/calendar/calendarApi'
 import { ChangeOccurrenceDialog } from '@/features/calendar/ChangeOccurrenceDialog'
 import { ItemDialog, type Draft } from '@/features/calendar/ItemDialog'
-import { KINDS } from '@/features/calendar/kinds'
+import { CalendarFilters, type Filters } from '@/features/calendar/CalendarFilters'
+import { ALL_KINDS, KINDS } from '@/features/calendar/kinds'
 import { OccurrenceDialog } from '@/features/calendar/OccurrenceDialog'
 import { ScopeDialog } from '@/features/calendar/ScopeDialog'
 import { instantToParts, nextHourSlot, viewerTimeZone } from '@/features/calendar/time'
 import { useHousehold, useMembers, type Member } from '@/features/households/householdsApi'
 import { canDeleteCalendarItem } from '@/features/households/permissions'
+import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { usePageMeta } from './usePageMeta'
 
 /** 12- or 24-hour clock as the viewer's system uses it ("10:00" vs "10:00 AM", never "10a"). */
@@ -115,7 +117,16 @@ const Calendar = () => {
    const members = useMembers(household.id)
    const [range, setRange] = useState<CalendarRange | null>(null)
    const [viewType, setViewType] = useState(initialView)
-   const calendar = useCalendar(household.id, range)
+   // Remembered per household in this browser.
+   const [storedFilters, setFilters] = useLocalStorage(`calendar-filters-${household.id}`, { kinds: ALL_KINDS, memberIds: [] })
+   const filters: Filters = {
+      kinds: (storedFilters?.kinds ?? ALL_KINDS).filter((k: string) => (ALL_KINDS as string[]).includes(k)),
+      memberIds: storedFilters?.memberIds ?? [],
+   }
+   const calendar = useCalendar(household.id, range, {
+      kinds: filters.kinds.length < ALL_KINDS.length ? filters.kinds : [],
+      memberIds: filters.memberIds,
+   })
    const change = useChangeOccurrence(household.id)
    const preview = useCalendarPreview(household.id)
 
@@ -172,14 +183,11 @@ const Calendar = () => {
             Icon={meta?.Icon}
          />
 
-         <ul className='mb-4 flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground' aria-label='Legend'>
-            {Object.entries(KINDS).map(([kind, { label, color }]) => (
-               <li key={kind} className='flex items-center gap-2'>
-                  <span className='size-2.5 rounded-full' style={{ background: color }} aria-hidden />
-                  {label}
-               </li>
-            ))}
-         </ul>
+         <CalendarFilters
+            value={{ ...filters, memberIds: filters.memberIds.filter((id) => memberList.some((m) => m.id === id)) }}
+            onChange={setFilters}
+            members={memberList}
+         />
 
          {calendar.isError && (
             <div

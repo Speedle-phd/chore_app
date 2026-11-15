@@ -16,6 +16,8 @@ export type User = {
    avatarUrl: string | null
    /** `YYYY-MM-DD`, `--MM-DD` (year unknown) or null. */
    birthday: string | null
+   /** IANA zone, saved from the browser (reminder digest at 08:00 local). */
+   timezone: string | null
 }
 
 export type SignupInput = {

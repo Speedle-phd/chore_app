@@ -6,6 +6,7 @@ import { CalendarItem } from '../models/calendarItemModel'
 import { Invitation } from '../models/invitationModel'
 import { Membership, type MembershipType, type Role } from '../models/membershipModel'
 import { Occurrence } from '../models/occurrenceModel'
+import { Reminder } from '../models/reminderModel'
 import { User } from '../models/userModel'
 import { realtime } from '../socket/realtime'
 import { householdView, memberView } from './householdViews'
@@ -28,6 +29,8 @@ export function createHouseholdService({ avatarDir }: { avatarDir: string }) {
 
    async function detach(target: MembershipType) {
       await target.deleteOne()
+      // Their reminders, and others' reminders for their birthday.
+      await Reminder.deleteMany({ $or: [{ membershipId: target._id }, { 'target.memberId': target._id }] })
       if (target.profile?.avatarUrl) await deleteAvatar(target.profile.avatarUrl, avatarDir)
       if (target.userId) {
          await User.updateOne(
@@ -91,6 +94,16 @@ export function createHouseholdService({ avatarDir }: { avatarDir: string }) {
          return view(me.householdId, me.role)
       },
 
+      /** Switch the leaderboard, badges or streaks on or off (owners and admins). */
+      async setMotivation(me: MembershipType, input: { leaderboard?: boolean | undefined; badges?: boolean | undefined; streaks?: boolean | undefined }) {
+         if (!canManage(me.role)) throw new ForbiddenError('Only owners and admins can change this.')
+         const set = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined).map(([k, v]) => [`motivation.${k}`, v]))
+         await Household.updateOne({ _id: me.householdId }, { $set: set })
+         realtime.householdChanged(me.householdId, 'household')
+         realtime.userChanged(await accountIds(me.householdId), 'households')
+         return view(me.householdId, me.role)
+      },
+
       async remove(me: MembershipType) {
          if (!canDeleteHousehold(me.role)) throw new ForbiddenError('Only owners can delete the household.')
          const members = await Membership.find({ householdId: me.householdId })
@@ -98,6 +111,7 @@ export function createHouseholdService({ avatarDir }: { avatarDir: string }) {
          await Invitation.deleteMany({ householdId: me.householdId })
          await Occurrence.deleteMany({ householdId: me.householdId })
          await CalendarItem.deleteMany({ householdId: me.householdId })
+         await Reminder.deleteMany({ householdId: me.householdId })
          await Household.deleteOne({ _id: me.householdId })
       },
 

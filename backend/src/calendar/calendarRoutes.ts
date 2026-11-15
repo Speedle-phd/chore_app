@@ -10,9 +10,11 @@ import {
    itemInputSchema,
    occurrenceChangeSchema,
    occurrenceParamsSchema,
+   statsQuerySchema,
    statusSchema,
 } from './calendarSchemas'
 import type { CalendarService } from './calendarService'
+import type { StatsService } from './statsService'
 
 const me = (req: Request): MembershipType => {
    if (!req.membership) throw new UnauthorizedError('Not signed in')
@@ -21,7 +23,7 @@ const me = (req: Request): MembershipType => {
 const itemId = (req: Request) => String(req.params.id)
 
 /** Mounted under /api/households/:hid (membership checked): /calendar, /calendar-items, /chores. */
-export function createCalendarRoutes(calendar: CalendarService) {
+export function createCalendarRoutes(calendar: CalendarService, stats: StatsService) {
    const router = Router({ mergeParams: true })
 
    router.get('/calendar', async (req, res) => {
@@ -35,6 +37,9 @@ export function createCalendarRoutes(calendar: CalendarService) {
    router.get('/calendar-items', async (req, res) => {
       const { kind } = itemListQuerySchema.parse(req.query)
       res.json(await calendar.listItems(me(req), kind))
+   })
+   router.get('/stats', async (req, res) => {
+      res.json(await stats.stats(me(req), statsQuerySchema.parse(req.query), new Date()))
    })
    router.post('/calendar-items', async (req, res) => {
       res.status(201).json(await calendar.create(me(req), itemInputSchema.parse(req.body)))

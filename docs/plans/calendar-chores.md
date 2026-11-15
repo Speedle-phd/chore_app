@@ -1,6 +1,6 @@
 # Plan: Calendar + Chores
 
-Status: **phases 1–4 done** (2026-11-16), phase 5 next. Prerequisite (login + households) is done; see [login-and-households.md](login-and-households.md) and [../HANDOFF.md](../HANDOFF.md).
+Status: **phases 1–5 and 7 done** (2026-11-16), plus calendar filters; phase 6 (iCal) next. Prerequisite (login + households) is done; see [login-and-households.md](login-and-households.md) and [../HANDOFF.md](../HANDOFF.md).
 
 ## Context
 
@@ -75,9 +75,9 @@ Phase 1 implemented the common fields, `recurrence { rrule, exdates }` and deriv
 2. ✅ **Interaction:** create/edit dialog with recurrence editor; drag/resize/select with scope handling; optimistic updates; `'calendar'` live topic.
 3. ✅ **Chore workflow:** statuses, assignment modes, rotation, after-completion schedules, Today/Overdue lists.
 4. ✅ **Birthdays & vacation:** birthday fields, manual birthdays, vacations with reassignment proposals.
-5. **Stats & motivation:** stats endpoints, dashboard, effort fair share, streaks, badges, leaderboard, toggles.
+5. ✅ **Stats & motivation:** stats endpoints, dashboard, effort fair share, streaks, badges, leaderboard, toggles.
 6. **iCal:** subscribe feed + import with preview.
-7. **Email reminders:** digests/overdue reminders via the existing mailer (scheduler in the backend).
+7. ✅ **Email reminders:** subscriptions (phase 5 extra) + `worker` container sending a daily digest at 08:00 local (built 2026-11-16). digests/overdue reminders via the existing mailer (scheduler in the backend).
 
 ## Verification (per phase)
 

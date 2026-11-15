@@ -22,6 +22,7 @@ import { OccurrenceDialog } from '@/features/calendar/OccurrenceDialog'
 import { describeRepeat } from '@/features/calendar/recurrence'
 import { nextHourSlot, viewerTimeZone } from '@/features/calendar/time'
 import { ChoreCard, EffortDots } from '@/features/chores/ChoreCard'
+import { StatsView } from '@/features/stats/StatsView'
 import { dateOf, dayLabel, isMine } from '@/features/chores/format'
 import { useHousehold, useMembers } from '@/features/households/householdsApi'
 import { canDeleteCalendarItem } from '@/features/households/permissions'
@@ -113,6 +114,7 @@ const Chores = () => {
                <TabsList>
                   <TabsTrigger value='todo'>To do</TabsTrigger>
                   <TabsTrigger value='all'>All chores</TabsTrigger>
+                  <TabsTrigger value='stats'>Stats</TabsTrigger>
                </TabsList>
                <label className='flex cursor-pointer items-center gap-2 text-sm'>
                   <Checkbox checked={onlyMine} onCheckedChange={(checked) => setOnlyMine(checked)} />
@@ -252,6 +254,9 @@ const Chores = () => {
                         })}
                   </ul>
                )}
+            </TabsContent>
+            <TabsContent value='stats'>
+               <StatsView householdId={household.id} members={memberList} />
             </TabsContent>
          </Tabs>
 

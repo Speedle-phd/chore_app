@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ChoreActions } from '@/features/chores/ChoreActions'
 import { ConflictNotice } from '@/features/chores/ConflictNotice'
+import { RemindMe } from '@/features/reminders/RemindMe'
 import { EffortDots } from '@/features/chores/ChoreCard'
 import type { Member, Role } from '@/features/households/householdsApi'
 import { avatarSrc, initials } from '@/lib/member'
@@ -155,6 +156,19 @@ export function OccurrenceDialog({ householdId, instance, members, role, canDele
                      variant='full'
                   />
                </section>
+            )}
+
+            {instance.kind !== 'chore' && (
+               <RemindMe
+                  householdId={householdId}
+                  target={
+                     instance.source === 'member'
+                        ? { type: 'member', memberId: instance.memberIds[0] ?? '' }
+                        : { type: 'item', itemId: instance.itemId }
+                  }
+                  about={instance.title}
+                  size='sm'
+               />
             )}
 
             {instance.source === 'member' && (

@@ -154,6 +154,16 @@ export type StatusInput = z.infer<typeof statusSchema>
 
 export const itemListQuerySchema = z.object({ kind: z.enum(CALENDAR_KINDS).optional() })
 
+/** Statistics for local dates [from, to); at most a year plus a day. */
+export const statsQuerySchema = z
+   .object({
+      from: z.iso.date(),
+      to: z.iso.date(),
+      tz: z.string().max(64).refine(isTimeZone, 'Unknown time zone.'),
+   })
+   .refine((q) => q.from < q.to, { message: '`from` must be before `to`.', path: ['to'] })
+   .refine((q) => Date.parse(q.to) - Date.parse(q.from) <= 367 * DAY_MS, { message: 'Ask for at most a year.', path: ['to'] })
+
 export const choresQuerySchema = z.object({
    tz: z.string().max(64).refine(isTimeZone, 'Unknown time zone.'),
 })
