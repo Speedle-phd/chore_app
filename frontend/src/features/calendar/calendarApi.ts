@@ -17,6 +17,8 @@ export type ChoreInfo = ChoreSettings & {
    state: ChoreState
    overdue: boolean
    completions: Completion[]
+   /** Assignees away on vacation that day, with a proposed reassignment (null = nobody free). */
+   conflict: { away: string[]; suggestion: string[] | null } | null
 }
 
 /** One concrete occurrence (server: backend/src/calendar/calendarViews.ts). */
@@ -38,6 +40,10 @@ export type CalendarInstance = {
    recurring: boolean
    overridden: boolean
    chore: ChoreInfo | null
+   /** `member`: a birthday from a member's profile (read-only in the calendar). */
+   source: 'entry' | 'member'
+   /** Birthdays: the age reached on this date, when the year is known. */
+   age: number | null
 }
 
 /** A whole entry (series); times are local wall-clock in `timezone`. */
@@ -56,6 +62,8 @@ export type CalendarItem = {
    afterDays: number | null
    exdates: string[]
    chore: ChoreSettings
+   /** Birthday entries: year of birth (for the age). */
+   birthYear: number | null
    createdBy: string
    createdAt: string
    updatedAt: string
@@ -63,7 +71,7 @@ export type CalendarItem = {
 
 export type ItemInput = Pick<
    CalendarItem,
-   'kind' | 'title' | 'notes' | 'allDay' | 'start' | 'end' | 'timezone' | 'memberIds' | 'rrule' | 'afterDays' | 'chore'
+   'kind' | 'title' | 'notes' | 'allDay' | 'start' | 'end' | 'timezone' | 'memberIds' | 'rrule' | 'afterDays' | 'chore' | 'birthYear'
 >
 
 export type Scope = 'this' | 'following' | 'all'

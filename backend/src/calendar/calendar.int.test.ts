@@ -153,7 +153,10 @@ describe('GET /api/households/:hid/calendar', () => {
             state: 'open',
             overdue: true,
             completions: [],
+            conflict: null,
          },
+         source: 'entry',
+         age: null,
       })
    })
 

@@ -147,7 +147,7 @@ export function ChoreActions({ householdId, instance, members, role, variant = '
       <div className='flex items-center'>
          <Button
             size='sm'
-            className='rounded-e-none'
+            className='rounded-e-none border-e border-primary-foreground/30'
             disabled={!me || setStatus.isPending}
             onClick={() => me && mark(me.id, 'done')}
             aria-label={`Mark “${instance.title}” done`}
@@ -159,9 +159,9 @@ export function ChoreActions({ householdId, instance, members, role, variant = '
             <DropdownMenuTrigger
                aria-label={`More for “${instance.title}”`}
                disabled={!me || setStatus.isPending}
-               className='inline-flex h-8 items-center rounded-e-lg border-s border-primary-foreground/30 bg-primary px-1.5 text-primary-foreground outline-none hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50'
+               render={<Button size='sm' className='rounded-s-none px-1.5' />}
             >
-               <ChevronDown className='size-4' />
+               <ChevronDown />
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end' className='min-w-48'>
                {others.length > 0 && (

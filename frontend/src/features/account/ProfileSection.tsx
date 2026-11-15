@@ -10,12 +10,15 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { useMe } from '@/features/auth/authApi'
+import { fromParts, toParts, type BirthdayParts } from '@/features/households/birthday'
+import { BirthdayField } from '@/features/households/BirthdayField'
 import FormAlert from '@/features/auth/FormAlert'
 import { useRemoveAvatar, useSetAvatar, useUpdateAccount } from './accountApi'
 
 const schema = z.object({
    fname: z.string().trim().min(1, 'Enter your first name.').max(50),
    lname: z.string().trim().min(1, 'Enter your last name.').max(50),
+   birthday: z.custom<BirthdayParts>().refine((b) => fromParts(b) !== null, 'Enter a full date, or leave all three empty.'),
 })
 type Values = z.infer<typeof schema>
 
@@ -28,7 +31,7 @@ const ProfileSection = () => {
    const [uploading, setUploading] = useState<File | undefined>()
    const form = useForm<Values>({
       resolver: zodResolver(schema),
-      defaultValues: { fname: me?.fname ?? '', lname: me?.lname ?? '' },
+      defaultValues: { fname: me?.fname ?? '', lname: me?.lname ?? '', birthday: toParts(me?.birthday) },
    })
    if (!me) return null
 
@@ -91,13 +94,16 @@ const ProfileSection = () => {
          <form
             noValidate
             className='space-y-4'
-            onSubmit={form.handleSubmit((values) =>
-               update.mutate(values, {
-                  onSuccess: (user) => {
-                     form.reset({ fname: user.fname, lname: user.lname })
-                     toast.success('Name saved')
+            onSubmit={form.handleSubmit(({ birthday, ...values }) =>
+               update.mutate(
+                  { ...values, birthday: fromParts(birthday) || null },
+                  {
+                     onSuccess: (user) => {
+                        form.reset({ fname: user.fname, lname: user.lname, birthday: toParts(user.birthday) })
+                        toast.success('Profile saved')
+                     },
                   },
-               }),
+               ),
             )}
          >
             {update.isError && <FormAlert tone='error' error={apiError(update.error)} />}
@@ -105,12 +111,19 @@ const ProfileSection = () => {
                {nameField('fname', 'First name', 'given-name')}
                {nameField('lname', 'Last name', 'family-name')}
             </div>
+            <Controller
+               name='birthday'
+               control={form.control}
+               render={({ field, fieldState }) => (
+                  <BirthdayField value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
+               )}
+            />
             <div className='space-y-1'>
                <p className='text-sm font-medium'>Email</p>
                <p className='text-sm text-muted-foreground'>{me.email}</p>
             </div>
             <Button type='submit' disabled={!form.formState.isDirty || update.isPending}>
-               {update.isPending ? 'Saving…' : 'Save name'}
+               {update.isPending ? 'Saving…' : 'Save profile'}
             </Button>
          </form>
       </div>

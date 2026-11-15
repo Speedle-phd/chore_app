@@ -16,6 +16,7 @@ type UserInfo = {
    lname: string
    email: string
    avatarUrl?: string | null
+   birthday?: string | null
 }
 
 /** A person in the household; account details come from the user, profiles from the membership. */
@@ -33,6 +34,7 @@ export function memberView(membership: MembershipType, user: UserInfo | null, me
       // Visible only to fellow members of this household.
       email: isAccount ? (user?.email ?? null) : null,
       avatarUrl: (isAccount ? user?.avatarUrl : membership.profile?.avatarUrl) ?? null,
+      birthday: (isAccount ? user?.birthday : membership.profile?.birthday) ?? null,
       isMe: Boolean(membership.userId?.equals(meId)),
       joinedAt: membership.createdAt.toISOString(),
    }

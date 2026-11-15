@@ -6,12 +6,17 @@ import { toast } from 'sonner'
 import * as z from 'zod'
 import { apiError } from '@/api/client'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { DatePicker } from '@/components/ui/date-picker'
+import { TimePicker } from '@/components/ui/time-picker'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
 import FormAlert from '@/features/auth/FormAlert'
+import { EMPTY_BIRTHDAY, fromParts, type BirthdayParts } from '@/features/households/birthday'
+import { BirthdayField } from '@/features/households/BirthdayField'
 import { cn } from '@/lib/utils'
 import type { Member } from '@/features/households/householdsApi'
 import {
@@ -24,7 +29,7 @@ import {
 } from './calendarApi'
 import { KINDS } from './kinds'
 import { MemberPicker } from './MemberPicker'
-import { afterDaysOf, repeatOf, toRrule, type Repeat } from './recurrence'
+import { afterDaysOf, NO_REPEAT, repeatOf, toRrule, type Repeat } from './recurrence'
 import { RecurrenceEditor } from './RecurrenceEditor'
 import { ScopeDialog } from './ScopeDialog'
 import { selectClass } from './styles'
@@ -48,8 +53,15 @@ const schema = z
       effort: z.number().int().min(1).max(5),
       assignmentMode: z.enum(['anyone', 'everyone']),
       rotation: z.boolean(),
+      birthday: z.custom<BirthdayParts>(),
    })
    .superRefine((v, ctx) => {
+      if (v.kind === 'birthday') {
+         if (!fromParts(v.birthday)) {
+            ctx.addIssue({ code: 'custom', path: ['birthday'], message: 'Pick the day and month (the year is optional).' })
+         }
+         return
+      }
       if (!v.allDay) {
          if (!TIME.test(v.startTime)) ctx.addIssue({ code: 'custom', path: ['startTime'], message: 'Pick a time.' })
          if (!TIME.test(v.endTime)) ctx.addIssue({ code: 'custom', path: ['endTime'], message: 'Pick a time.' })
@@ -86,7 +98,7 @@ export function ItemDialog({ householdId, members, itemId, draft, canDelete, onC
 
    return (
       <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-         <DialogContent className='scrollbar-slim max-h-[94dvh] overflow-y-auto sm:max-w-lg md:max-w-3xl'>
+         <DialogContent className='max-h-[94dvh] overflow-y-auto sm:max-w-lg md:max-w-3xl'>
             <DialogHeader>
                <DialogTitle>{editing ? 'Edit entry' : 'New entry'}</DialogTitle>
                <DialogDescription>
@@ -133,6 +145,10 @@ function initialValues(item: CalendarItem | null, draft: Draft | null): Values {
          notes: item.notes,
          repeat: repeatOf(item.rrule, item.afterDays, item.timezone),
          ...item.chore,
+         birthday:
+            item.kind === 'birthday'
+               ? { day: String(Number(item.start.slice(8, 10))), month: String(Number(item.start.slice(5, 7))), year: item.birthYear ? String(item.birthYear) : '' }
+               : EMPTY_BIRTHDAY,
       }
    }
    const d = draft ?? { allDay: false, start: { date: '', time: '09:00' }, end: { date: '', time: '10:00' } }
@@ -150,6 +166,34 @@ function initialValues(item: CalendarItem | null, draft: Draft | null): Values {
       effort: 1,
       assignmentMode: 'anyone',
       rotation: false,
+      // A selected day prefills the birthday if the type is switched to Birthday.
+      birthday: d.start.date
+         ? { day: String(Number(d.start.date.slice(8, 10))), month: String(Number(d.start.date.slice(5, 7))), year: '' }
+         : EMPTY_BIRTHDAY,
+   }
+}
+
+/** Birthdays: all-day, yearly; with a year the start is the birth date (age = years since). */
+function birthdayInput(v: Values, timezone: string): ItemInput {
+   const stored = fromParts(v.birthday) as string
+   const year = v.birthday.year ? Number(v.birthday.year) : null
+   const monthDay = stored.slice(-5)
+   // Without a year, start in 2000 (a leap year, so 29 February is valid).
+   const start = `${year ?? 2000}-${monthDay}`
+   return {
+      kind: 'birthday',
+      title: v.title,
+      notes: v.notes,
+      allDay: true,
+      start,
+      end: addDays(start, 1),
+      timezone,
+      memberIds: [],
+      // 29 February: the last day of February, so it shows on the 28th in other years.
+      rrule: monthDay === '02-29' ? 'FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=-1' : 'FREQ=YEARLY',
+      afterDays: null,
+      birthYear: year,
+      chore: { effort: v.effort, assignmentMode: v.assignmentMode, rotation: false },
    }
 }
 
@@ -169,14 +213,26 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
    const [confirmDelete, setConfirmDelete] = useState(false)
    const timezone = item?.timezone ?? viewerTimeZone()
    const form = useForm<Values>({ resolver: zodResolver(schema), defaultValues: initialValues(item, draft) })
-   const [allDay, startDate, startTime, kind, memberIds, assignmentMode, rotation] = useWatch({
+   const [allDay, startDate, startTime, kind, memberIds, assignmentMode, rotation, repeat] = useWatch({
       control: form.control,
-      name: ['allDay', 'startDate', 'startTime', 'kind', 'memberIds', 'assignmentMode', 'rotation'],
+      name: ['allDay', 'startDate', 'startTime', 'kind', 'memberIds', 'assignmentMode', 'rotation', 'repeat'],
    })
    const isChore = kind === 'chore'
-   const canRotate = assignmentMode === 'anyone' && memberIds.length > 1
+   const isBirthday = kind === 'birthday'
+   const repeats = repeat === 'custom' || repeat.freq !== 'none'
+   // Turns only make sense when it comes round again.
+   const canRotate = repeats && assignmentMode === 'anyone' && memberIds.length > 1
 
    const submit = form.handleSubmit((v) => {
+      if (v.kind === 'birthday') {
+         save.mutate(birthdayInput(v, timezone), {
+            onSuccess: () => {
+               toast.success(item ? 'Birthday saved' : 'Birthday added')
+               onDone()
+            },
+         })
+         return
+      }
       const input: ItemInput = {
          kind: v.kind,
          title: v.title,
@@ -189,10 +245,15 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
          memberIds: v.memberIds,
          rrule: v.repeat === 'custom' ? (item?.rrule ?? null) : toRrule(v.repeat, timezone),
          afterDays: v.kind === 'chore' ? afterDaysOf(v.repeat) : null,
+         birthYear: null,
          chore: {
             effort: v.effort,
             assignmentMode: v.assignmentMode,
-            rotation: v.rotation && v.assignmentMode === 'anyone' && v.memberIds.length > 1,
+            rotation:
+               v.rotation &&
+               v.assignmentMode === 'anyone' &&
+               v.memberIds.length > 1 &&
+               (v.repeat === 'custom' || v.repeat.freq !== 'none'),
          },
       }
       save.mutate(input, {
@@ -240,7 +301,19 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
                render={({ field }) => (
                   <fieldset>
                      <legend className='mb-1.5 text-sm font-medium'>Type</legend>
-                     <RadioGroup value={field.value} onValueChange={field.onChange} className='grid grid-cols-2 gap-2'>
+                     <RadioGroup
+                        value={field.value}
+                        onValueChange={(next) => {
+                           field.onChange(next)
+                           // Sensible defaults: birthdays are all-day and yearly, vacations all-day.
+                           if (next === 'birthday' || next === 'vacation') form.setValue('allDay', true)
+                           const current = form.getValues('repeat')
+                           if (next === 'birthday' && current !== 'custom' && current.freq === 'none') {
+                              form.setValue('repeat', { ...NO_REPEAT, freq: 'YEARLY' })
+                           }
+                        }}
+                        className='grid grid-cols-2 gap-2'
+                     >
                         {(Object.keys(KINDS) as CalendarKind[]).map((kind) => (
                            <label
                               key={kind}
@@ -256,15 +329,30 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
                )}
             />
 
+            {isBirthday ? (
+               <Controller
+                  name='birthday'
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                     <BirthdayField value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
+                  )}
+               />
+            ) : (
             <div className='space-y-2'>
                <div className='flex items-center justify-between'>
                   <span id={`${id}-when`} className='text-sm font-medium'>
                      When
                   </span>
-                  <label className='flex items-center gap-2 text-sm'>
-                     <input type='checkbox' className='size-4 accent-primary' {...form.register('allDay')} />
-                     All day
-                  </label>
+                  <Controller
+                     name='allDay'
+                     control={form.control}
+                     render={({ field }) => (
+                        <label className='flex cursor-pointer items-center gap-2 text-sm'>
+                           <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                           All day
+                        </label>
+                     )}
+                  />
                </div>
                <div role='group' aria-labelledby={`${id}-when`} className='grid grid-cols-[3.25rem_minmax(0,1fr)_auto] items-center gap-2'>
                   {(['start', 'end'] as const).map((which) => (
@@ -274,12 +362,12 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
                            name={`${which}Date`}
                            control={form.control}
                            render={({ field, fieldState }) => (
-                              <Input
-                                 {...field}
-                                 type='date'
+                              <DatePicker
+                                 value={field.value}
+                                 onChange={field.onChange}
                                  aria-label={`${which === 'start' ? 'Start' : 'End'} date`}
-                                 aria-invalid={fieldState.invalid}
-                                 className={cn('h-9', allDay && 'col-span-2')}
+                                 invalid={fieldState.invalid}
+                                 className={cn(allDay && 'col-span-2')}
                               />
                            )}
                         />
@@ -288,12 +376,12 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
                               name={`${which}Time`}
                               control={form.control}
                               render={({ field, fieldState }) => (
-                                 <Input
-                                    {...field}
-                                    type='time'
+                                 <TimePicker
+                                    value={field.value}
+                                    onChange={field.onChange}
                                     aria-label={`${which === 'start' ? 'Start' : 'End'} time`}
-                                    aria-invalid={fieldState.invalid}
-                                    className='h-9 w-28'
+                                    invalid={fieldState.invalid}
+                                    className='w-32'
                                  />
                               )}
                            />
@@ -306,10 +394,13 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
                   <p className='text-xs text-muted-foreground'>Times are in {timezone.replace(/_/g, ' ')}.</p>
                )}
             </div>
+            )}
          </div>
 
          {/* Right: repeat, people, notes */}
          <div className='space-y-5'>
+            {!isBirthday && (
+            <>
             <Controller
                name='repeat'
                control={form.control}
@@ -338,6 +429,11 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
                   )}
                />
             </div>
+            </>
+            )}
+            {isBirthday && (
+               <p className='text-sm text-muted-foreground'>Repeats every year. With a year, the calendar shows the age.</p>
+            )}
 
             {isChore && (
                <fieldset className='space-y-3 rounded-xl border bg-muted/30 p-3'>
@@ -393,24 +489,31 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
                      />
                   </div>
                   <div className='space-y-1'>
-                     <label className={cn('flex w-fit items-center gap-2 text-sm', !canRotate && 'text-muted-foreground')}>
-                        <input
-                           type='checkbox'
-                           className='size-4 accent-primary'
-                           disabled={!canRotate}
-                           aria-describedby={`${id}-turns`}
-                           {...form.register('rotation')}
-                        />
-                        Take turns
-                     </label>
+                     <Controller
+                        name='rotation'
+                        control={form.control}
+                        render={({ field }) => (
+                           <label className={cn('flex w-fit cursor-pointer items-center gap-2 text-sm', !canRotate && 'text-muted-foreground')}>
+                              <Checkbox
+                                 checked={field.value && canRotate}
+                                 onCheckedChange={field.onChange}
+                                 disabled={!canRotate}
+                                 aria-describedby={`${id}-turns`}
+                              />
+                              Take turns
+                           </label>
+                        )}
+                     />
                      <p id={`${id}-turns`} className='text-xs text-muted-foreground'>
                         {canRotate
                            ? rotation
                               ? `Turns: ${memberIds.map((m) => members.find((x) => x.id === m)?.fname ?? '?').join(' → ')}`
                               : 'One person per date, in the order you picked them.'
-                           : assignmentMode === 'everyone'
-                             ? 'Not with “each of them”: everyone does it every time.'
-                             : 'Pick at least two people to take turns.'}
+                           : !repeats
+                             ? 'Turns are for repeating chores: pick how it repeats first.'
+                             : assignmentMode === 'everyone'
+                               ? 'Not with “each of them”: everyone does it every time.'
+                               : 'Pick at least two people to take turns.'}
                      </p>
                   </div>
                </fieldset>
@@ -422,7 +525,7 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
                render={({ field }) => (
                   <Field className='gap-1.5'>
                      <FieldLabel htmlFor={`${id}-notes`}>Notes</FieldLabel>
-                     <Textarea {...field} id={`${id}-notes`} rows={2} className='max-h-32 scrollbar-slim' />
+                     <Textarea {...field} id={`${id}-notes`} rows={2} className='max-h-32' />
                   </Field>
                )}
             />

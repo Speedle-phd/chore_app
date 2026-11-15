@@ -1,4 +1,4 @@
-import { isValidObjectId } from 'mongoose'
+import { isValidObjectId, type Types } from 'mongoose'
 import { Temporal } from 'temporal-polyfill'
 import {
    assigneesFor,
@@ -33,13 +33,16 @@ import {
    toItemLocal,
 } from '../domain/seriesEdits'
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors'
+import { birthdaysBetween, parseBirthday } from '../domain/birthdays'
+import { awayOn, vacationConflict } from '../domain/vacations'
 import { canDeleteCalendarItem, canMarkChoreFor } from '../households/permissions'
 import { CalendarItem, type CalendarItemType } from '../models/calendarItemModel'
 import { Membership, type MembershipType } from '../models/membershipModel'
 import { Occurrence } from '../models/occurrenceModel'
+import { User } from '../models/userModel'
 import { realtime } from '../socket/realtime'
 import type { CalendarQuery, ItemInput, OccurrenceChange, Scope, StatusInput } from './calendarSchemas'
-import { choreSettings, completionView, instanceView, itemView, type CalendarInstance } from './calendarViews'
+import { choreSettings, completionView, instanceView, itemView, memberBirthdayView, type CalendarInstance } from './calendarViews'
 
 const DAY_MS = 86_400_000
 /** How far back the chore agenda looks for overdue ones. App choice. */
@@ -132,38 +135,81 @@ function dateOf(instance: { allDay: boolean; start: string }, zone: string): str
       : Temporal.Instant.from(instance.start).toZonedDateTimeISO(zone).toPlainDate().toString()
 }
 
+type CalendarKindName = CalendarItemType['kind']
+
+/** Local date range [start, end) an occurrence covers for the viewer (all-day: as stored). */
+function localRange(allDay: boolean, start: string, end: string, tz: string): { start: string; end: string } {
+   if (allDay) return { start, end }
+   const s = Temporal.Instant.from(start).toZonedDateTimeISO(tz)
+   const e = Temporal.Instant.from(end).toZonedDateTimeISO(tz)
+   const endDate = e.toPlainTime().equals(Temporal.PlainTime.from('00:00')) ? e.toPlainDate() : e.toPlainDate().add({ days: 1 })
+   return { start: s.toPlainDate().toString(), end: endDate.toString() }
+}
+
+/** Read-only birthday occurrences for members who entered one (accounts: on the user; profiles: on the membership). */
+async function memberBirthdays(
+   memberships: { _id: Types.ObjectId; userId?: Types.ObjectId | null; profile?: { fname: string; birthday?: string | null } | null }[],
+   window: { from: Temporal.Instant; to: Temporal.Instant },
+   tz: string,
+): Promise<CalendarInstance[]> {
+   const userIds = memberships.flatMap((m) => (m.userId ? [m.userId] : []))
+   const users = await User.find({ _id: { $in: userIds } }).select('fname birthday').lean()
+   const userOf = new Map(users.map((u) => [u._id.toString(), u]))
+   const fromDate = window.from.toZonedDateTimeISO(tz).toPlainDate().toString()
+   const toDate = window.to.toZonedDateTimeISO(tz).toPlainDate().add({ days: 1 }).toString()
+   const startOf = (d: string) => Temporal.PlainDate.from(d).toZonedDateTime({ timeZone: tz }).toInstant()
+
+   return memberships.flatMap((m) => {
+      const person = m.userId ? userOf.get(m.userId.toString()) : m.profile
+      const birthday = parseBirthday(person?.birthday)
+      if (!person || !birthday) return []
+      return birthdaysBetween(birthday, fromDate, toDate)
+         .filter(({ date }) => {
+            const next = Temporal.PlainDate.from(date).add({ days: 1 }).toString()
+            return Temporal.Instant.compare(startOf(date), window.to) < 0 && Temporal.Instant.compare(startOf(next), window.from) > 0
+         })
+         .map(({ date, age }) =>
+            memberBirthdayView({ id: m._id.toString(), fname: person.fname }, date, Temporal.PlainDate.from(date).add({ days: 1 }).toString(), age),
+         )
+   })
+}
+
 export function createCalendarService() {
    const changed = (me: MembershipType) => realtime.householdChanged(me.householdId, 'calendar')
 
    async function list(me: MembershipType, query: CalendarQuery, now: Date): Promise<CalendarInstance[]> {
       const from = new Date(query.from)
       const to = new Date(query.to)
+      const tz = query.tz
+      const wants = (kind: CalendarKindName) => !query.kinds?.length || query.kinds.includes(kind)
       // rangeStart/rangeEnd of all-day items are UTC midnights; a day of padding covers every viewer zone.
-      const items = await CalendarItem.find({
+      const inWindow = {
          householdId: me.householdId,
          rangeStart: { $lt: new Date(to.getTime() + DAY_MS) },
          $or: [{ rangeEnd: null }, { rangeEnd: { $gt: new Date(from.getTime() - DAY_MS) } }],
-         ...(query.kinds?.length ? { kind: { $in: query.kinds } } : {}),
-      })
+      }
+      const items = await CalendarItem.find({ ...inWindow, ...(query.kinds?.length ? { kind: { $in: query.kinds } } : {}) })
          .sort({ rangeStart: 1, _id: 1 })
          .lean()
-      if (!items.length) return []
+      // Vacations decide chore conflicts even when they aren't listed themselves.
+      const hiddenVacations =
+         wants('chore') && !wants('vacation') ? await CalendarItem.find({ ...inWindow, kind: 'vacation' }).lean() : []
+      const memberships = await Membership.find({ householdId: me.householdId }).sort({ createdAt: 1 }).lean()
 
-      const overrides = await Occurrence.find({
-         householdId: me.householdId,
-         itemId: { $in: items.map((i) => i._id) },
-      }).lean()
+      const allItems = [...items, ...hiddenVacations]
+      const overrides = allItems.length
+         ? await Occurrence.find({ householdId: me.householdId, itemId: { $in: allItems.map((i) => i._id) } }).lean()
+         : []
       const overridesOf = Map.groupBy(overrides, (o) => o.itemId.toString())
-
       const window = {
          from: Temporal.Instant.fromEpochMilliseconds(from.getTime()),
          to: Temporal.Instant.fromEpochMilliseconds(to.getTime()),
-         viewerZone: query.tz,
+         viewerZone: tz,
       }
       const nowInstant = Temporal.Instant.fromEpochMilliseconds(now.getTime())
-      const wanted = query.memberIds?.length ? new Set(query.memberIds) : null
 
-      return items.flatMap((item) => {
+      // 1) Expand every item once; chores get their effective assignees.
+      const rows = allItems.flatMap((item) => {
          const itemOverrides = overridesOf.get(item._id.toString()) ?? []
          const byOriginal = new Map(itemOverrides.map((o) => [o.originalStart, o]))
          const timing: ItemTiming = {
@@ -177,22 +223,48 @@ export function createCalendarService() {
          }
          const pool = item.memberIds.map(String)
          const settings = choreSettings(item)
-
-         return expandItem(timing, itemOverrides.map(overrideOf), window)
-            .map((instance) => {
-               const override = byOriginal.get(instance.originalStart)
-               const reassigned = override?.memberIds ? override.memberIds.map(String) : null
-               if (item.kind !== 'chore') {
-                  return instanceView(item, instance, reassigned ?? pool, Boolean(reassigned), null)
-               }
-               const assignees = assigneesFor(pool, settings.rotation, instance.index, reassigned)
-               const completions = (override?.completions ?? []).map(completionView)
-               const state = choreState(settings.assignmentMode, assignees, completions)
-               const overdue = isOverdue(state, dueOf(item, instance.end, query.tz), nowInstant)
-               return instanceView(item, instance, assignees, Boolean(reassigned), { state, overdue, completions })
-            })
-            .filter((view) => !wanted || view.memberIds.some((id) => wanted.has(id)))
+         return expandItem(timing, itemOverrides.map(overrideOf), window).map((instance) => {
+            const override = byOriginal.get(instance.originalStart)
+            const reassigned = override?.memberIds ? override.memberIds.map(String) : null
+            const assignees =
+               item.kind === 'chore' ? assigneesFor(pool, settings.rotation, instance.index, reassigned) : (reassigned ?? pool)
+            return { item, instance, override, reassigned, assignees, pool, settings }
+         })
       })
+
+      // 2) Who is away when, and how busy everyone is in this period (for fair suggestions).
+      const vacations = rows
+         .filter((r) => r.item.kind === 'vacation')
+         .map((r) => ({ memberIds: r.assignees, ...localRange(r.item.allDay, r.instance.start, r.instance.end, tz) }))
+      const load = new Map<string, number>()
+      for (const r of rows) if (r.item.kind === 'chore') for (const id of r.assignees) load.set(id, (load.get(id) ?? 0) + 1)
+      const household = memberships.map((m) => m._id.toString())
+      const listed = new Set(items.map((i) => i._id.toString()))
+
+      // 3) Views.
+      const views = rows
+         .filter((r) => listed.has(r.item._id.toString()))
+         .map(({ item, instance, override, reassigned, assignees, pool, settings }) => {
+            if (item.kind !== 'chore') return instanceView(item, instance, assignees, Boolean(reassigned), null)
+            const completions = (override?.completions ?? []).map(completionView)
+            const state = choreState(settings.assignmentMode, assignees, completions)
+            const overdue = isOverdue(state, dueOf(item, instance.end, tz), nowInstant)
+            const conflict = isSettled(state)
+               ? null
+               : vacationConflict(
+                    { mode: settings.assignmentMode, assignees, pool },
+                    awayOn(vacations, dateOf({ allDay: item.allDay, start: instance.start }, tz)),
+                    household,
+                    load,
+                 )
+            return instanceView(item, instance, assignees, Boolean(reassigned), { state, overdue, completions, conflict })
+         })
+
+      // 4) Birthdays from member profiles.
+      if (wants('birthday')) views.push(...(await memberBirthdays(memberships, window, tz)))
+
+      const wanted = query.memberIds?.length ? new Set(query.memberIds) : null
+      return wanted ? views.filter((v) => v.memberIds.some((id) => wanted.has(id))) : views
    }
 
    return {
@@ -253,6 +325,7 @@ export function createCalendarService() {
             memberIds: input.memberIds,
             recurrence: { rrule: input.rrule, exdates: [], afterDays: input.afterDays },
             chore: input.chore,
+            birthYear: input.birthYear,
          })
          await applySpan(item, [])
          await item.save()
@@ -290,6 +363,7 @@ export function createCalendarService() {
                exdates: timingChanged ? [] : item.recurrence.exdates,
             },
             chore: input.chore,
+            birthYear: input.birthYear,
          })
          const kept = timingChanged
             ? await Occurrence.find({ itemId: item._id, 'completions.0': { $exists: true } }).lean()

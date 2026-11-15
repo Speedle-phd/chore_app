@@ -20,6 +20,8 @@ const membershipSchema = new Schema(
                fname: { type: String, required: true, trim: true, maxlength: 50 },
                lname: { type: String, required: true, trim: true, maxlength: 50 },
                avatarUrl: { type: String, default: null },
+               /** Optional; `YYYY-MM-DD` or `--MM-DD` (year unknown). */
+               birthday: { type: String, default: null },
             },
             { _id: false },
          ),

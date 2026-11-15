@@ -31,6 +31,7 @@ export function useUpdateAccount() {
          lname?: string
          handle?: string | null
          findableByHandle?: boolean
+         birthday?: string | null
       }) => (await api.patch<User>('/account', input)).data,
       onSuccess: saved,
    })

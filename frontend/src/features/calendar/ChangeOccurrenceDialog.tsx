@@ -4,7 +4,8 @@ import { apiError } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { FieldError } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/ui/date-picker'
+import { TimePicker } from '@/components/ui/time-picker'
 import FormAlert from '@/features/auth/FormAlert'
 import type { Member } from '@/features/households/householdsApi'
 import { useChangeOccurrence, type CalendarInstance, type OccurrenceChange, type Scope } from './calendarApi'
@@ -72,20 +73,18 @@ function ChangeForm({ householdId, instance, members, onClose }: ChangeOccurrenc
       <fieldset className='space-y-1.5'>
          <legend className='text-sm font-medium'>{which === 'start' ? 'Starts' : 'Ends'}</legend>
          <div className='flex gap-2'>
-            <Input
-               type='date'
+            <DatePicker
                aria-label={`${which === 'start' ? 'Start' : 'End'} date`}
-               className='h-10 min-w-0 flex-1'
+               className='flex-1'
                value={value.date}
-               onChange={(e) => set({ ...value, date: e.target.value })}
+               onChange={(date) => set({ ...value, date })}
             />
             {!instance.allDay && (
-               <Input
-                  type='time'
+               <TimePicker
                   aria-label={`${which === 'start' ? 'Start' : 'End'} time`}
-                  className='h-10 w-28'
+                  className='w-32'
                   value={value.time}
-                  onChange={(e) => set({ ...value, time: e.target.value })}
+                  onChange={(time) => set({ ...value, time })}
                />
             )}
          </div>

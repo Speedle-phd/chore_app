@@ -66,6 +66,8 @@ export const itemInputSchema = z
             const problem = rrule ? rruleProblem(rrule) : null
             if (problem) ctx.addIssue({ code: 'custom', message: problem })
          }),
+      /** Birthday entries: year of birth, for the age (optional). */
+      birthYear: z.number().int().min(1900).max(2100).nullable().default(null),
       /** "Repeat after completion" (chores only): days after the last one was done. */
       afterDays: z.number().int().min(1).max(365).nullable().default(null),
       chore: z
@@ -87,8 +89,20 @@ export const itemInputSchema = z
          ctx.addIssue({ code: 'custom', path: ['afterDays'], message: 'Pick either a fixed repeat or “after completion”.' })
          return z.NEVER
       }
+      if (input.birthYear !== null && input.kind !== 'birthday') {
+         ctx.addIssue({ code: 'custom', path: ['birthYear'], message: 'Only birthdays have a birth year.' })
+         return z.NEVER
+      }
+      if (input.birthYear !== null && input.birthYear > Number(start.slice(0, 4))) {
+         ctx.addIssue({ code: 'custom', path: ['birthYear'], message: 'The birth year can’t be after the birthday.' })
+         return z.NEVER
+      }
       if (input.afterDays && input.kind !== 'chore') {
          ctx.addIssue({ code: 'custom', path: ['afterDays'], message: 'Only chores can repeat after completion.' })
+         return z.NEVER
+      }
+      if (input.chore.rotation && !input.rrule && !input.afterDays) {
+         ctx.addIssue({ code: 'custom', path: ['chore', 'rotation'], message: 'Taking turns needs a repeating chore.' })
          return z.NEVER
       }
       if (input.chore.rotation && input.chore.assignmentMode === 'everyone') {

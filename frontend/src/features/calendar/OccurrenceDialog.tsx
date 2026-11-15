@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ChoreActions } from '@/features/chores/ChoreActions'
+import { ConflictNotice } from '@/features/chores/ConflictNotice'
 import { EffortDots } from '@/features/chores/ChoreCard'
 import type { Member, Role } from '@/features/households/householdsApi'
 import { avatarSrc, initials } from '@/lib/member'
@@ -34,7 +35,7 @@ type OccurrenceDialogProps = {
 
 /** Details of one occurrence with its actions (keyboard alternative to dragging). */
 export function OccurrenceDialog({ householdId, instance, members, role, canDelete, onClose, onEdit, onChange }: OccurrenceDialogProps) {
-   const item = useCalendarItem(householdId, instance?.recurring ? instance.itemId : null)
+   const item = useCalendarItem(householdId, instance?.recurring && instance.source === 'entry' ? instance.itemId : null)
    const removeItem = useDeleteItem(householdId)
    const removeOccurrence = useDeleteOccurrence(householdId)
    const [confirming, setConfirming] = useState(false)
@@ -77,6 +78,7 @@ export function OccurrenceDialog({ householdId, instance, members, role, canDele
                   <dd>
                      {formatWhen(instance.start, instance.end, instance.allDay)}
                      {instance.overridden && <span className='text-muted-foreground'> · changed for this date</span>}
+                     {instance.kind === 'birthday' && instance.age !== null && <span> · turns {instance.age}</span>}
                   </dd>
                </div>
                {instance.recurring && (
@@ -84,7 +86,13 @@ export function OccurrenceDialog({ householdId, instance, members, role, canDele
                      <dt className='shrink-0'>
                         <Repeat className='size-4 text-muted-foreground' aria-label='Repeats' />
                      </dt>
-                     <dd>{item.data ? describeRepeat(item.data.rrule, item.data.timezone, item.data.afterDays) : 'Repeats'}</dd>
+                     <dd>
+                        {instance.source === 'member'
+                           ? 'Every year'
+                           : item.data
+                             ? describeRepeat(item.data.rrule, item.data.timezone, item.data.afterDays)
+                             : 'Repeats'}
+                     </dd>
                   </div>
                )}
                <div className='flex gap-3'>
@@ -132,6 +140,13 @@ export function OccurrenceDialog({ householdId, instance, members, role, canDele
                         </span>
                      )}
                   </div>
+                  {instance.chore.conflict && (
+                     <ConflictNotice
+                        householdId={householdId}
+                        instance={{ ...instance, chore: { ...instance.chore, conflict: instance.chore.conflict } }}
+                        members={members}
+                     />
+                  )}
                   <ChoreActions
                      householdId={householdId}
                      instance={{ ...instance, chore: instance.chore }}
@@ -142,6 +157,13 @@ export function OccurrenceDialog({ householdId, instance, members, role, canDele
                </section>
             )}
 
+            {instance.source === 'member' && (
+               <p className='rounded-xl border bg-muted/30 p-3 text-sm text-muted-foreground'>
+                  From {people[0]?.fname ?? 'a member'}’s profile. Change it on the Members page (profiles) or in Account (your own).
+               </p>
+            )}
+
+            {instance.source === 'entry' && (
             <div className='flex flex-wrap gap-2 border-t pt-4'>
                <Button variant='outline' onClick={() => onEdit(instance.itemId)}>
                   <Pencil />
@@ -163,7 +185,8 @@ export function OccurrenceDialog({ householdId, instance, members, role, canDele
                   Delete
                </Button>
             </div>
-            {!deletable && <p id={hintId} className='-mt-2 text-xs text-muted-foreground'>Only who added it or an admin can delete it.</p>}
+            )}
+            {instance.source === 'entry' && !deletable && <p id={hintId} className='-mt-2 text-xs text-muted-foreground'>Only who added it or an admin can delete it.</p>}
 
             <ScopeDialog
                open={confirming}

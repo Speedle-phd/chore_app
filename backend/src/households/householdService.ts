@@ -11,7 +11,7 @@ import { realtime } from '../socket/realtime'
 import { householdView, memberView } from './householdViews'
 import { canChangeRoles, canDeleteHousehold, canManage, canRemove } from './permissions'
 
-type ProfileInput = { fname: string; lname: string }
+type ProfileInput = { fname: string; lname: string; birthday?: string | null | undefined }
 
 /** The caller's own membership (from requireMembership) is passed in as `me`. */
 export function createHouseholdService({ avatarDir }: { avatarDir: string }) {
@@ -104,7 +104,7 @@ export function createHouseholdService({ avatarDir }: { avatarDir: string }) {
       async listMembers(me: MembershipType) {
          const memberships = await Membership.find({ householdId: me.householdId }).sort({ createdAt: 1 })
          const userIds = memberships.flatMap((m) => (m.userId ? [m.userId] : []))
-         const users = await User.find({ _id: { $in: userIds } }).select('fname lname email avatarUrl').lean()
+         const users = await User.find({ _id: { $in: userIds } }).select('fname lname email avatarUrl birthday').lean()
          const userOf = new Map(users.map((u) => [u._id.toString(), u]))
          const meId = me.userId as Types.ObjectId
          return memberships.map((m) => memberView(m, m.userId ? (userOf.get(m.userId.toString()) ?? null) : null, meId))
@@ -117,9 +117,9 @@ export function createHouseholdService({ avatarDir }: { avatarDir: string }) {
             const profile = await Membership.create({
                householdId: me.householdId,
                role: 'member',
-               profile: { ...input, avatarUrl },
+               profile: { ...input, birthday: input.birthday ?? null, avatarUrl },
             })
-            realtime.householdChanged(me.householdId, 'members')
+            realtime.householdChanged(me.householdId, 'members', 'calendar')
             return memberView(profile, null, me.userId as Types.ObjectId)
          } catch (error) {
             await deleteAvatar(avatarUrl, avatarDir)
@@ -134,7 +134,7 @@ export function createHouseholdService({ avatarDir }: { avatarDir: string }) {
 
          const previousAvatar = target.profile.avatarUrl ?? null
          const avatarUrl = avatar ? await saveAvatar(avatar, avatarDir) : previousAvatar
-         target.profile = { ...input, avatarUrl }
+         target.profile = { ...input, birthday: input.birthday ?? null, avatarUrl }
          try {
             await target.save()
          } catch (error) {

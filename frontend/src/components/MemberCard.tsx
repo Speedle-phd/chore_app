@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Crown, LogOut, Mail, MailPlus, ShieldCheck, User, UserCog, UserPlus } from 'lucide-react'
+import { formatBirthday } from '@/features/households/birthday'
+import { Cake, Crown, LogOut, Mail, MailPlus, ShieldCheck, User, UserCog, UserPlus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { apiError } from '@/api/client'
@@ -135,6 +136,13 @@ const MemberCard = ({ member, myRole, householdId, online = false }: MemberCardP
                   </Badge>
                   {isProfile && <Badge variant='outline'>No login</Badge>}
                </div>
+               {formatBirthday(member.birthday) && (
+                  <p className='mt-2 flex items-center gap-1.5 text-sm text-muted-foreground'>
+                     <Cake className='size-3.5' aria-hidden />
+                     <span className='sr-only'>Birthday:</span>
+                     {formatBirthday(member.birthday)}
+                  </p>
+               )}
             </div>
          </div>
 

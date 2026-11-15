@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dateOf, dayLabel, isMine, whenText } from './format'
+import { conflictText, dateOf, dayLabel, isMine, whenText } from './format'
 
 const BERLIN = 'Europe/Berlin'
 
@@ -27,5 +27,20 @@ describe('chore formatting', () => {
       expect(isMine({ memberIds: [] }, 'me')).toBe(true)
       expect(isMine({ memberIds: ['me', 'b'] }, 'me')).toBe(true)
       expect(isMine({ memberIds: ['b'] }, 'me')).toBe(false)
+   })
+})
+
+describe('conflictText', () => {
+   const people = [
+      { id: 'a', fname: 'Ada' },
+      { id: 'b', fname: 'Ben' },
+      { id: 'k', fname: 'Kid' },
+   ]
+   it.each([
+      ['someone takes over', { away: ['a'], suggestion: ['b'] }, ['a'], { awayText: 'Ada is away', action: 'Give to Ben' }],
+      ['the away person is left out', { away: ['k'], suggestion: ['a'] }, ['a', 'k'], { awayText: 'Kid is away', action: 'Leave Kid out' }],
+      ['nobody free', { away: ['a', 'b'], suggestion: null }, ['a', 'b'], { awayText: 'Ada and Ben are away', action: null }],
+   ])('%s', (_name, conflict, assignees, expected) => {
+      expect(conflictText(conflict, assignees, people)).toEqual(expected)
    })
 })

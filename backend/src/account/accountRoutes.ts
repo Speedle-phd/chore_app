@@ -6,6 +6,7 @@ import { userView } from '../auth/authViews'
 import type { Sessions } from '../auth/sessions'
 import { BadRequestError, ConflictError, TooManyRequestsError, UnauthorizedError } from '../errors'
 import upload from '../middleware/avatarUpload'
+import { birthdaySchema } from '../households/householdSchemas'
 import { User } from '../models/userModel'
 import type { AccountService } from './accountService'
 
@@ -23,6 +24,7 @@ const updateSchema = z
       lname: personName.optional(),
       handle: handleSchema.nullable().optional(),
       findableByHandle: z.boolean().optional(),
+      birthday: birthdaySchema.nullable().optional(),
    })
    .strict()
 const deleteSchema = z.object({ password: z.string().min(1, 'Enter your password.').max(256) })
@@ -38,7 +40,11 @@ export function createAccountRoutes(account: AccountService, sessions: Sessions)
 
    router.patch('/', async (req, res) => {
       const input = updateSchema.parse(req.body)
-      const user = await account.updateProfile(userIdOf(req), { fname: input.fname, lname: input.lname })
+      const user = await account.updateProfile(userIdOf(req), {
+         fname: input.fname,
+         lname: input.lname,
+         birthday: input.birthday,
+      })
 
       if (input.handle !== undefined) user.handle = input.handle
       if (input.findableByHandle !== undefined) user.findableByHandle = input.findableByHandle

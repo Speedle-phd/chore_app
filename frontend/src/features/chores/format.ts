@@ -28,3 +28,20 @@ export function whenText(instance: Pick<CalendarInstance, 'allDay' | 'start'>, t
 /** Is it mine to do? Assigned to me, or to nobody (anyone may). */
 export const isMine = (instance: Pick<CalendarInstance, 'memberIds'>, myId: string | undefined) =>
    instance.memberIds.length === 0 || (myId !== undefined && instance.memberIds.includes(myId))
+
+/**
+ * Wording for a vacation clash: "Ada is away" and the button for the suggestion.
+ * If everyone suggested is already assigned, the away people are left out
+ * ("each of them"); otherwise someone takes over.
+ */
+export function conflictText(
+   conflict: { away: string[]; suggestion: string[] | null },
+   assignees: string[],
+   people: { id: string; fname: string }[],
+): { awayText: string; action: string | null } {
+   const names = (ids: string[]) => ids.map((id) => people.find((p) => p.id === id)?.fname ?? 'Former member').join(' and ')
+   const awayText = `${names(conflict.away)} ${conflict.away.length > 1 ? 'are' : 'is'} away`
+   if (!conflict.suggestion?.length) return { awayText, action: null }
+   const leaveOut = conflict.suggestion.every((id) => assignees.includes(id))
+   return { awayText, action: leaveOut ? `Leave ${names(conflict.away)} out` : `Give to ${names(conflict.suggestion)}` }
+}

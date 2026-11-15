@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react'
 import { Temporal } from 'temporal-polyfill'
-import { CalendarCheck, ClipboardList, PartyPopper, Pencil, Plus, RefreshCw, Repeat, WifiOff } from 'lucide-react'
+import { CalendarCheck, ClipboardList, PartyPopper, Pencil, Plane, Plus, RefreshCw, Repeat, WifiOff } from 'lucide-react'
+import { toast } from 'sonner'
 import { apiError } from '@/api/client'
 import EmptyState from '@/components/EmptyState'
 import PageHeader from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AvatarStack } from '@/features/calendar/AvatarStack'
 import {
    useCalendarItems,
+   useChangeOccurrence,
    useChoreAgenda,
    type CalendarInstance,
    type ChoreInfo,
@@ -52,6 +55,28 @@ const Chores = () => {
    const overdue = data ? filter(data.overdue) : []
    const today = data ? filter(data.today) : []
    const upcoming = data ? filter(data.upcoming) : []
+   // Vacation clashes with a suggestion, across overdue, today and the next 7 days.
+   const clashes = [...overdue, ...today, ...upcoming].filter((i) => i.chore.conflict?.suggestion?.length)
+   const change = useChangeOccurrence(household.id)
+   const [accepting, setAccepting] = useState(false)
+   const acceptAll = async () => {
+      setAccepting(true)
+      let failed = 0
+      for (const i of clashes) {
+         try {
+            await change.mutateAsync({
+               ref: { itemId: i.itemId, originalStart: i.originalStart },
+               scope: 'this',
+               change: { memberIds: i.chore.conflict?.suggestion ?? [] },
+            })
+         } catch {
+            failed++
+         }
+      }
+      setAccepting(false)
+      if (failed) toast.error(`${failed} of ${clashes.length} couldn’t be reassigned.`)
+      else toast.success(`Reassigned ${clashes.length} ${clashes.length === 1 ? 'chore' : 'chores'}`)
+   }
    const upcomingByDay = new Map<string, ChoreInstance[]>()
    for (const i of upcoming) upcomingByDay.set(dateOf(i, zone), [...(upcomingByDay.get(dateOf(i, zone)) ?? []), i])
 
@@ -89,13 +114,8 @@ const Chores = () => {
                   <TabsTrigger value='todo'>To do</TabsTrigger>
                   <TabsTrigger value='all'>All chores</TabsTrigger>
                </TabsList>
-               <label className='flex items-center gap-2 text-sm'>
-                  <input
-                     type='checkbox'
-                     className='size-4 accent-primary'
-                     checked={onlyMine}
-                     onChange={(e) => setOnlyMine(e.target.checked)}
-                  />
+               <label className='flex cursor-pointer items-center gap-2 text-sm'>
+                  <Checkbox checked={onlyMine} onCheckedChange={(checked) => setOnlyMine(checked)} />
                   Only mine
                </label>
             </div>
@@ -116,6 +136,21 @@ const Chores = () => {
                   </EmptyState>
                ) : (
                   <>
+                     {clashes.length > 0 && (
+                        <div
+                           role='status'
+                           className='flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm'
+                        >
+                           <span className='flex items-center gap-2'>
+                              <Plane className='size-4 text-primary' aria-hidden />
+                              {clashes.length} {clashes.length === 1 ? 'chore falls' : 'chores fall'} on someone’s vacation. Each
+                              card shows a suggestion.
+                           </span>
+                           <Button size='sm' disabled={accepting} onClick={() => void acceptAll()}>
+                              {accepting ? 'Reassigning…' : 'Accept all suggestions'}
+                           </Button>
+                        </div>
+                     )}
                      {overdue.length > 0 && (
                         <section aria-labelledby='chores-overdue'>
                            <h2 id='chores-overdue' className='mb-3 flex items-center gap-2 text-base font-semibold'>

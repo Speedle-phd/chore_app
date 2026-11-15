@@ -21,6 +21,8 @@ export type Member = {
    fullName: string
    email: string | null
    avatarUrl: string | null
+   /** `YYYY-MM-DD`, `--MM-DD` (year unknown) or null. */
+   birthday: string | null
    isMe: boolean
    joinedAt: string
 }
@@ -139,15 +141,16 @@ function useMembersChanged(hid: string) {
    }
 }
 
-export type ProfileInput = { fname: string; lname: string; avatar?: File | undefined }
+export type ProfileInput = { fname: string; lname: string; birthday: string; avatar?: File | undefined }
 
 export function useSaveProfile(hid: string, profileId?: string) {
    const changed = useMembersChanged(hid)
    return useMutation({
-      mutationFn: async ({ fname, lname, avatar }: ProfileInput) => {
+      mutationFn: async ({ fname, lname, birthday, avatar }: ProfileInput) => {
          const form = new FormData()
          form.append('fname', fname)
          form.append('lname', lname)
+         form.append('birthday', birthday)
          if (avatar) form.append('avatar', avatar)
          const config = { headers: { 'Content-Type': 'multipart/form-data' } }
          return profileId

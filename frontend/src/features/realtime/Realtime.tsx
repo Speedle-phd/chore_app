@@ -13,8 +13,17 @@ export function RealtimeConnection() {
    const queryClient = useQueryClient()
 
    useEffect(() => {
+      // While one of our own writes is in flight, a refetch could return data from before it and
+      // overwrite the optimistic update (a brief flip back). Hold notices until our writes settle.
+      const held: (readonly unknown[])[] = []
+      const flush = () => {
+         if (queryClient.isMutating() > 0 || !held.length) return
+         for (const queryKey of held.splice(0)) void queryClient.invalidateQueries({ queryKey })
+      }
+      const unsubscribe = queryClient.getMutationCache().subscribe(flush)
       const invalidate = (keys: readonly (readonly unknown[])[]) => {
-         for (const queryKey of keys) void queryClient.invalidateQueries({ queryKey })
+         held.push(...keys)
+         flush()
       }
       const onHousehold: ServerToClientEvents['household:changed'] = (e) => invalidate(householdKeys(e.householdId, e.topics))
       const onUser: ServerToClientEvents['user:changed'] = (e) => invalidate(userKeys(e.topics))
@@ -41,6 +50,7 @@ export function RealtimeConnection() {
       socket.on('connect_error', onConnectError)
       socket.connect()
       return () => {
+         unsubscribe()
          socket.off('household:changed', onHousehold)
          socket.off('user:changed', onUser)
          socket.off('connect', onConnect)

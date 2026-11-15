@@ -1,3 +1,4 @@
+import { DatePicker } from '@/components/ui/date-picker'
 import { Input } from '@/components/ui/input'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
@@ -136,12 +137,11 @@ export function RecurrenceEditor({ id, value, onChange, start, defaultUntil, all
                   <option value='count'>after</option>
                </select>
                {repeat.end.type === 'until' && (
-                  <Input
-                     type='date'
+                  <DatePicker
                      aria-label='Last date'
-                     className='h-9 w-auto'
+                     className='w-auto'
                      value={repeat.end.date}
-                     onChange={(e) => e.target.value && set({ end: { type: 'until', date: e.target.value } })}
+                     onChange={(date) => set({ end: { type: 'until', date } })}
                   />
                )}
                {repeat.end.type === 'count' && (

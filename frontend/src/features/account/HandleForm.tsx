@@ -3,6 +3,7 @@ import { AtSign } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiError } from '@/api/client'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useMe } from '@/features/auth/authApi'
@@ -62,13 +63,12 @@ const HandleForm = () => {
          </div>
 
          <label htmlFor={findableId} className='flex cursor-pointer items-start gap-3 rounded-xl border p-3'>
-            <input
+            <Checkbox
                id={findableId}
-               type='checkbox'
                checked={findable && normalized !== ''}
                disabled={normalized === ''}
-               onChange={(e) => setFindable(e.target.checked)}
-               className='mt-0.5 size-4 accent-(--primary)'
+               onCheckedChange={(checked) => setFindable(checked)}
+               className='mt-0.5'
             />
             <span className='text-sm'>
                <span className='block font-medium'>Let others find me by my @handle</span>

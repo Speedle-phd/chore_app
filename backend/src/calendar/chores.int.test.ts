@@ -215,10 +215,12 @@ describe('rotation', () => {
       ])
    })
 
-   it('rejects rotation with “everyone”', async () => {
+   it.each([
+      ['with “everyone”', { chore: { rotation: true, assignmentMode: 'everyone' } }],
+      ['for a chore that doesn’t repeat', { rrule: null, chore: { rotation: true } }],
+   ])('rejects taking turns %s', async (_name, over) => {
       const { owner, items } = await home()
-      const res = await owner.post(items, chore({ chore: { rotation: true, assignmentMode: 'everyone' } }))
-      expect(res.status).toBe(400)
+      expect((await owner.post(items, chore(over))).status).toBe(400)
    })
 })
 

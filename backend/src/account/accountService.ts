@@ -30,7 +30,8 @@ export function createAccountService({ households, sessions, avatarDir }: Deps) 
    /** Your name/picture appear on member cards in every household you're in, and in your other tabs. */
    async function profileChanged(userId: Types.ObjectId) {
       const memberships = await Membership.find({ userId }).select('householdId').lean()
-      for (const m of memberships) realtime.householdChanged(m.householdId, 'members')
+      // Names and birthdays also show in the calendar.
+      for (const m of memberships) realtime.householdChanged(m.householdId, 'members', 'calendar')
       realtime.userChanged(userId, 'profile')
    }
 
@@ -66,10 +67,14 @@ export function createAccountService({ households, sessions, avatarDir }: Deps) 
    }
 
    return {
-      async updateProfile(userId: Types.ObjectId, input: { fname?: string | undefined; lname?: string | undefined }) {
+      async updateProfile(
+         userId: Types.ObjectId,
+         input: { fname?: string | undefined; lname?: string | undefined; birthday?: string | null | undefined },
+      ) {
          const user = await load(userId)
          if (input.fname !== undefined) user.fname = input.fname
          if (input.lname !== undefined) user.lname = input.lname
+         if (input.birthday !== undefined) user.birthday = input.birthday
          await user.save()
          await profileChanged(user._id)
          return user

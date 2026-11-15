@@ -11,5 +11,6 @@ export const userView = (user: UserType) => ({
    lastHouseholdId: user.lastHouseholdId?.toString() ?? null,
    handle: user.handle ?? null,
    avatarUrl: user.avatarUrl ?? null,
+   birthday: user.birthday ?? null,
    findableByHandle: Boolean(user.findableByHandle),
 })

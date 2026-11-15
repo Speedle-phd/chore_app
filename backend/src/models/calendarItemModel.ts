@@ -24,6 +24,8 @@ const calendarItemSchema = new Schema(
       end: { type: String, required: true },
       timezone: { type: String, required: true },
       memberIds: { type: [{ type: Types.ObjectId, ref: 'Membership' }], default: [] },
+      /** Birthday entries: the year the person was born (for the age), if known. */
+      birthYear: { type: Number, default: null },
       recurrence: {
          type: new Schema(
             {

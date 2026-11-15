@@ -5,6 +5,7 @@ import { KINDS } from '@/features/calendar/kinds'
 import type { Member, Role } from '@/features/households/householdsApi'
 import { cn } from '@/lib/utils'
 import { ChoreActions } from './ChoreActions'
+import { ConflictNotice } from './ConflictNotice'
 import { whenText } from './format'
 
 type ChoreCardProps = {
@@ -76,6 +77,14 @@ export function ChoreCard({ householdId, instance, members, role, today, zone, o
                {people.length > 0 && <AvatarStack people={people} size='sm' />}
             </span>
          </button>
+         {chore.conflict && (
+            <ConflictNotice
+               householdId={householdId}
+               instance={{ ...instance, chore: { ...chore, conflict: chore.conflict } }}
+               members={members}
+               className='sm:order-none'
+            />
+         )}
          <div className='shrink-0 sm:ms-auto'>
             <ChoreActions householdId={householdId} instance={instance} members={members} role={role} />
          </div>

@@ -14,6 +14,8 @@ export type User = {
    handle: string | null
    findableByHandle: boolean
    avatarUrl: string | null
+   /** `YYYY-MM-DD`, `--MM-DD` (year unknown) or null. */
+   birthday: string | null
 }
 
 export type SignupInput = {

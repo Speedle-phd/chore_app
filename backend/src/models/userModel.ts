@@ -16,6 +16,8 @@ const userSchema = new Schema(
       fname: { type: String, required: true, trim: true },
       lname: { type: String, required: true, trim: true },
       avatarUrl: { type: String, default: null },
+      /** Optional; `YYYY-MM-DD` or `--MM-DD` (year unknown). Shown to fellow household members. */
+      birthday: { type: String, default: null },
       /** Public @handle, stored lowercase; optional until the user picks one. */
       handle: { type: String, default: null, lowercase: true, trim: true },
       /** Opt-in: others may find this account by its exact @handle. */

@@ -1,6 +1,6 @@
 # Plan: Calendar + Chores
 
-Status: **phases 1–3 done** (2026-11-16), phase 4 next. Prerequisite (login + households) is done; see [login-and-households.md](login-and-households.md) and [../HANDOFF.md](../HANDOFF.md).
+Status: **phases 1–4 done** (2026-11-16), phase 5 next. Prerequisite (login + households) is done; see [login-and-households.md](login-and-households.md) and [../HANDOFF.md](../HANDOFF.md).
 
 ## Context
 
@@ -47,7 +47,7 @@ Phase 1 implemented the common fields, `recurrence { rrule, exdates }` and deriv
   - Chore: `effort` (1–5), `assignmentMode` (`anyone | everyone`), `rotation { enabled, order[] }`, `checklist[]`, `archived`.
   - Birthday: `personName?`, `memberId?`, `birthYear?`. Vacation: `memberId`. Imported: `source { uid, importedAt }`.
 - **`Occurrence`** (sparse, iCalendar RECURRENCE-ID model): key `itemId + originalStart` (unique); overrides `start?`, `end?`, `memberIds?`, `cancelled?`; `completions[{ memberId, status, completedAt, completedBy, note }]`.
-- **`Badge`**, **`IcalFeed`** (`householdId`, token hash), **Membership/User gets `birthday?`** (profiles: in `profile`; accounts: on `User`).
+- **`Badge`**, **`IcalFeed`** (`householdId`, token hash). Built in phase 4: `birthday` on `User` and `Membership.profile` (`YYYY-MM-DD` or `--MM-DD`); vacations use `memberIds` (several people can be away together); manual birthdays are titled entries (no `personName`/`birthYear` fields).
 - **Pure functions** in `backend/src/domain/` with unit tests: recurrence expansion, rotation, after-completion next due, stats, badges. Time is passed in.
 
 ## API
@@ -74,7 +74,7 @@ Phase 1 implemented the common fields, `recurrence { rrule, exdates }` and deriv
 1. ✅ **Foundations:** models, `domain/` recurrence expansion + Vitest tests (DST, EXDATE, UNTIL/COUNT), `GET …/calendar`, calendar page showing one-off and repeating chores/events, delete the demo components.
 2. ✅ **Interaction:** create/edit dialog with recurrence editor; drag/resize/select with scope handling; optimistic updates; `'calendar'` live topic.
 3. ✅ **Chore workflow:** statuses, assignment modes, rotation, after-completion schedules, Today/Overdue lists.
-4. **Birthdays & vacation:** birthday fields, manual birthdays, vacations with reassignment proposals.
+4. ✅ **Birthdays & vacation:** birthday fields, manual birthdays, vacations with reassignment proposals.
 5. **Stats & motivation:** stats endpoints, dashboard, effort fair share, streaks, badges, leaderboard, toggles.
 6. **iCal:** subscribe feed + import with preview.
 7. **Email reminders:** digests/overdue reminders via the existing mailer (scheduler in the backend).

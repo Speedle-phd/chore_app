@@ -67,7 +67,7 @@ const dayRowCommonClasses: CalendarOptions = {
    listItemEventTimeClass: (info) =>
       cn(
          info.isNarrow ? 'px-px' : 'px-0.5',
-         'text-muted-foreground order-1 whitespace-nowrap overflow-hidden shrink-1',
+         'text-muted-foreground whitespace-nowrap overflow-hidden shrink-0',
       ),
    listItemEventTitleClass: (info) =>
       cn(

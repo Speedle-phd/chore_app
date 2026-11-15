@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Check, CircleSlash, RefreshCw, Repeat } from 'lucide-react'
+import { AlertTriangle, Cake, Check, CircleSlash, Plane, RefreshCw, Repeat } from 'lucide-react'
 import type { EventDisplayInfo, EventInput } from '@fullcalendar/react'
 import { Temporal } from 'temporal-polyfill'
 import { toast } from 'sonner'
@@ -28,6 +28,11 @@ import { useHousehold, useMembers, type Member } from '@/features/households/hou
 import { canDeleteCalendarItem } from '@/features/households/permissions'
 import { usePageMeta } from './usePageMeta'
 
+/** 12- or 24-hour clock as the viewer's system uses it ("10:00" vs "10:00 AM", never "10a"). */
+const hour12 = /^h1[12]$/.test(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hourCycle ?? '')
+const timeFormat = { hour: 'numeric', minute: '2-digit', hour12, meridiem: hour12 ? 'short' : false } as const
+const slotFormat = { hour: 'numeric', minute: '2-digit', hour12, omitZeroMinute: hour12, meridiem: hour12 ? 'short' : false } as const
+
 /** Phones start in the list view; a month grid is unreadable at that width. */
 const initialView = () => (window.matchMedia('(max-width: 640px)').matches ? 'listWeek' : 'dayGridMonth')
 
@@ -38,6 +43,8 @@ const toEvent = (instance: CalendarInstance): EventInput => ({
    end: instance.end,
    allDay: instance.allDay,
    color: instance.color ?? KINDS[instance.kind].color,
+   // Birthdays from member profiles are edited in the profile, not here.
+   editable: instance.source === 'entry',
    extendedProps: { instance },
 })
 
@@ -65,7 +72,12 @@ function EventContent({ event, view, timeText, timeClass, titleClass, isNarrow, 
             {state === 'done' && <Check aria-label='Done' className='size-3 shrink-0' />}
             {state === 'skipped' && <CircleSlash aria-label='Skipped' className='size-3 shrink-0' />}
             {instance.chore?.overdue && <AlertTriangle aria-label='Overdue' className='size-3 shrink-0 text-destructive' />}
-            <span className={cn('truncate', (state === 'done' || state === 'skipped') && 'line-through opacity-70')}>{event.title}</span>
+            {instance.chore?.conflict && <Plane aria-label='Someone is away' className='size-3 shrink-0' />}
+            {instance.kind === 'birthday' && <Cake aria-hidden className='size-3 shrink-0' />}
+            <span className={cn('truncate', (state === 'done' || state === 'skipped') && 'line-through opacity-70')}>
+               {event.title}
+               {instance.source === 'entry' && instance.age !== null && <span className='font-normal opacity-80'> · {instance.age}</span>}
+            </span>
             {instance.recurring && <Repeat aria-label='Repeats' className='size-3 shrink-0 opacity-70' />}
          </span>
          {!isNarrow && (
@@ -102,6 +114,7 @@ const Calendar = () => {
    const household = useHousehold()
    const members = useMembers(household.id)
    const [range, setRange] = useState<CalendarRange | null>(null)
+   const [viewType, setViewType] = useState(initialView)
    const calendar = useCalendar(household.id, range)
    const change = useChangeOccurrence(household.id)
    const preview = useCalendarPreview(household.id)
@@ -183,14 +196,18 @@ const Calendar = () => {
 
          <div aria-busy={calendar.isFetching}>
             <EventCalendar
-               initialView={initialView()}
-               // Fits the screen; week/day views scroll inside and open at the start of the day.
-               height='clamp(34rem, calc(100dvh - 10rem), 60rem)'
+               initialView={viewType}
+               // Week/day fit the screen and scroll inside (opening at 07:00); month, list and year grow with their content.
+               height={viewType.startsWith('timeGrid') ? 'clamp(34rem, calc(100dvh - 10rem), 60rem)' : 'auto'}
                scrollTime='07:00:00'
+               // Overlapping entries share the column width instead of stacking on top of each other.
+               slotEventOverlap={false}
+               eventTimeFormat={timeFormat}
+               slotHeaderFormat={slotFormat}
                firstDay={1}
                nowIndicator
                navLinks
-               dayMaxEvents
+               dayMaxEvents={4}
                editable
                eventResizableFromStart
                selectable
@@ -218,7 +235,8 @@ const Calendar = () => {
                           },
                   )
                }}
-               datesSet={({ start, end }) => {
+               datesSet={({ start, end, view }) => {
+                  setViewType(view.type)
                   const next = { from: start.toISOString(), to: end.toISOString() }
                   setRange((prev) => (prev?.from === next.from && prev.to === next.to ? prev : next))
                }}
