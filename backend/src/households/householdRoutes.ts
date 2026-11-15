@@ -1,4 +1,6 @@
 import { Router, type Request } from 'express'
+import { createCalendarRoutes } from '../calendar/calendarRoutes'
+import type { CalendarService } from '../calendar/calendarService'
 import { createHouseholdInvitationRoutes } from '../invitations/invitationRoutes'
 import type { InvitationService } from '../invitations/invitationService'
 import { UnauthorizedError } from '../errors'
@@ -19,7 +21,11 @@ const me = (req: Request): MembershipType => {
 const memberId = (req: Request) => String(req.params.mid)
 
 /** Mounted at /api/households behind requireSession. */
-export function createHouseholdRoutes(households: HouseholdService, invitations: InvitationService) {
+export function createHouseholdRoutes(
+   households: HouseholdService,
+   invitations: InvitationService,
+   calendar: CalendarService,
+) {
    const router = Router()
 
    router.get('/', async (req, res) => {
@@ -55,6 +61,7 @@ export function createHouseholdRoutes(households: HouseholdService, invitations:
    })
 
    one.use('/invitations', createHouseholdInvitationRoutes(invitations))
+   one.use(createCalendarRoutes(calendar))
 
    one.get('/members', async (req, res) => {
       res.json(await households.listMembers(me(req)))

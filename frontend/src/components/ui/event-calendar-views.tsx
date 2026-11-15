@@ -9,9 +9,11 @@ import { cn } from '@/lib/utils'
 
 const xxsTextClass = 'text-[0.6875rem]/[1.090909]'
 
-const blockPointerResizerClass = 'absolute hidden group-hover:block'
-const rowPointerResizerClass = `${blockPointerResizerClass} inset-y-0 w-2`
-const columnPointerResizerClass = `${blockPointerResizerClass} inset-x-0 h-2`
+// Hover handles show a small grip pill in the event's colour.
+const blockPointerResizerClass =
+   'absolute z-10 hidden group-hover:flex items-center justify-center after:block after:rounded-full after:bg-(--fc-event-color)'
+const rowPointerResizerClass = `${blockPointerResizerClass} inset-y-0 w-2 after:h-3 after:w-1`
+const columnPointerResizerClass = `${blockPointerResizerClass} inset-x-0 h-2 after:h-1 after:w-8`
 
 const blockTouchResizerClass =
    'absolute size-2 border border-(--fc-event-color) bg-background rounded-full'
@@ -119,10 +121,12 @@ export function EventCalendarViews({
          eventContrastColor='var(--primary-foreground)'
          eventClass={(info) =>
             cn(
-               info.isSelected
-                  ? ['outline-3', info.isDragging && 'shadow-md']
-                  : 'focus-visible:outline-3',
-               'outline-ring/50',
+               info.isSelected ? 'outline-3' : 'focus-visible:outline-3',
+               'outline-ring/50 motion-safe:transition-[box-shadow,opacity,background-color] motion-safe:duration-150',
+               // The copy under the pointer is "lifted"; the original spot stays as a faint placeholder.
+               info.isMirror &&
+                  'z-30 cursor-grabbing shadow-2xl ring-2 ring-(--fc-event-color) bg-[color-mix(in_oklab,var(--fc-event-color)_40%,var(--background))] motion-safe:scale-[1.03]',
+               info.isDragging && !info.isMirror && 'opacity-35',
             )
          }
          /* Background Event
@@ -144,7 +148,7 @@ export function EventCalendarViews({
                'group relative print:bg-white border-transparent print:border-(--fc-event-color) bg-[color-mix(in_oklab,var(--fc-event-color)_25%,var(--background))]',
                info.isInteractive &&
                   'hover:bg-[color-mix(in_oklab,var(--fc-event-color)_30%,var(--background))]',
-               info.isDragging && !info.isSelected && 'opacity-75',
+
             )
          }
          blockEventInnerClass='text-[color-mix(in_oklab,var(--fc-event-color)_50%,var(--foreground))]'
@@ -465,7 +469,7 @@ export function EventCalendarViews({
                info.hasNavLink && '-outline-offset-1',
             )
          }
-         highlightClass='bg-chart-1/15'
+         highlightClass='bg-primary/10 ring-1 ring-inset ring-primary/40'
          nonBusinessHoursClass='bg-foreground/3'
          nowIndicatorLineClass='-m-px border-1 border-destructive'
          nowIndicatorDotClass='-m-[6px] border-6 border-destructive size-0 rounded-full ring-2 ring-background'

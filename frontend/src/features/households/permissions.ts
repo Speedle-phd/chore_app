@@ -15,3 +15,8 @@ export const ROLE_LABEL: Record<Role, string> = {
    admin: 'Admin',
    member: 'Member',
 }
+
+export const canDeleteCalendarItem = (role: Role, isCreator: boolean) => isCreator || canManage(role)
+
+export const canMarkChoreFor = (role: Role, isSelf: boolean, targetHasLogin: boolean) =>
+   isSelf || !targetHasLogin || canManage(role)

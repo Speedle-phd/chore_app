@@ -2,8 +2,10 @@ import { isValidObjectId, type Types } from 'mongoose'
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors'
 import { deleteAvatar, saveAvatar } from '../media/avatars'
 import { Household } from '../models/householdModel'
+import { CalendarItem } from '../models/calendarItemModel'
 import { Invitation } from '../models/invitationModel'
 import { Membership, type MembershipType, type Role } from '../models/membershipModel'
+import { Occurrence } from '../models/occurrenceModel'
 import { User } from '../models/userModel'
 import { realtime } from '../socket/realtime'
 import { householdView, memberView } from './householdViews'
@@ -94,6 +96,8 @@ export function createHouseholdService({ avatarDir }: { avatarDir: string }) {
          const members = await Membership.find({ householdId: me.householdId })
          for (const member of members) await detach(member)
          await Invitation.deleteMany({ householdId: me.householdId })
+         await Occurrence.deleteMany({ householdId: me.householdId })
+         await CalendarItem.deleteMany({ householdId: me.householdId })
          await Household.deleteOne({ _id: me.householdId })
       },
 

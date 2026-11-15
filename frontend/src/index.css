@@ -327,6 +327,19 @@
    html {
       @apply font-sans;
       scrollbar-gutter: stable;
+      /* Native controls (date/time picker icons, scrollbars) follow the theme. */
+      color-scheme: light;
+   }
+   html.dark,
+   html.midnight-ocean,
+   html.plum-noir,
+   html.ember {
+      color-scheme: dark;
+   }
+   /* The picker icon inside date/time inputs: full strength, clearly clickable. */
+   input::-webkit-calendar-picker-indicator {
+      cursor: pointer;
+      opacity: 0.9;
    }
    h1,
    h2,
@@ -342,4 +355,10 @@
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
       gap: 1rem;
    }
+}
+
+/* Slim, theme-coloured scrollbar for scrollable panels (e.g. dialogs on short screens). */
+@utility scrollbar-slim {
+   scrollbar-width: thin;
+   scrollbar-color: color-mix(in oklab, var(--foreground) 25%, transparent) transparent;
 }

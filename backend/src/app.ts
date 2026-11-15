@@ -16,6 +16,7 @@ import { isBreachedPassword, type BreachCheck } from './auth/password'
 import { createSessions, sessionConfig } from './auth/sessions'
 import { createAccountRoutes, createUserSearchRoutes } from './account/accountRoutes'
 import { createAccountService } from './account/accountService'
+import { createCalendarService } from './calendar/calendarService'
 import { createHouseholdRoutes } from './households/householdRoutes'
 import { createInvitationRoutes } from './invitations/invitationRoutes'
 import { createInvitationService } from './invitations/invitationService'
@@ -94,7 +95,7 @@ export function createApp(env: Env, deps: AppDeps = {}) {
    app.use(
       '/api/households',
       sessions.requireSession,
-      createHouseholdRoutes(households, invitations),
+      createHouseholdRoutes(households, invitations, createCalendarService()),
    )
    app.use('/api/invitations', createInvitationRoutes(invitations, sessions.requireSession, limits.token))
    app.use('/uploads/avatars', express.static(env.AVATAR_UPLOAD_DIR))

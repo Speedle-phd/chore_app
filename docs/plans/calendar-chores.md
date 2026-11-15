@@ -1,6 +1,6 @@
 # Plan: Calendar + Chores
 
-Status: **not started**, next up. Prerequisite (login + households) is done; see [login-and-households.md](login-and-households.md) and [../HANDOFF.md](../HANDOFF.md).
+Status: **phases 1–3 done** (2026-11-16), phase 4 next. Prerequisite (login + households) is done; see [login-and-households.md](login-and-households.md) and [../HANDOFF.md](../HANDOFF.md).
 
 ## Context
 
@@ -39,6 +39,8 @@ App choices: recurrence expanded **server-side** with `rrule-temporal` (maintain
 
 Every document: `householdId`, `createdBy` (membership id), timestamps.
 
+Phase 1 implemented the common fields, `recurrence { rrule, exdates }` and derived `rangeStart`/`rangeEnd`; time strings are local wall-clock in `timezone` (see HANDOFF decisions). Remaining fields below are added with defaults in their phases.
+
 - **`CalendarItem`** (`kind`: `chore | event | birthday | vacation`):
   - Common: `title`, `notes`, `color`, `allDay`, `start`, `end` (or `durationMin`), `timezone` (IANA), `memberIds[]` (membership ids).
   - `recurrence`: `{ type: 'none' | 'rrule' | 'afterCompletion', rrule?, intervalDays?, until?, count?, exdates[] }`.
@@ -53,7 +55,9 @@ Every document: `householdId`, `createdBy` (membership id), timestamps.
 - `GET /api/households/:hid/calendar?from&to&kinds&memberIds`: expanded instances (series + overrides + member birthdays + vacations; `atRisk` flag for vacation conflicts).
 - `POST | PATCH | DELETE /api/households/:hid/calendar-items[/:id]`.
 - `PATCH …/calendar-items/:id/occurrences/:originalStart?scope=this|following|all` (move/resize/reassign; `following` splits the series).
-- `POST …/occurrences/:originalStart/status` `{ status, note }` (as the caller's membership).
+- Built in phase 2: `GET|PUT|DELETE …/calendar-items/:id` (PUT = full replace) and `DELETE …/occurrences/:originalStart?scope=this|following`.
+- `POST …/occurrences/:originalStart/status` `{ status: done|skipped|open, memberId?, note? }` (built in phase 3; default: the caller).
+- Built in phase 3: `GET …/chores?tz` (agenda: overdue / today / next 7 days) and `GET …/calendar-items?kind=`.
 - `GET …/stats?from&to&groupBy=member|chore`, `GET …/stats/leaderboard`, `GET …/badges`.
 - `GET /api/ical/:token.ics` (feed, token hashed), `POST …/ical/import` (preview, then confirm), `POST …/ical/token/rotate`.
 
@@ -62,14 +66,14 @@ Every document: `householdId`, `createdBy` (membership id), timestamps.
 - `src/features/calendar/calendarApi.ts`: keys `['household', hid, 'calendar', from, to, filters]`; optimistic drag/resize, `info.revert()` + toast on error.
 - Calendar page replaces `routes/Calendar.tsx`, reuses `EventCalendar` (`eventDrop`, `eventResize`, `select`, custom `eventContent`: avatars, status tick, effort dot).
 - `ItemDialog` (react-hook-form + Zod), `RecurrenceEditor`, `ScopeDialog`, `OccurrencePopover`; reuse `PageHeader`, `EmptyState`, `ConfirmDeleteDialog`, `lib/member.ts`.
-- Chores page (`routes/Chores.tsx`): tabs Today / Upcoming / Overdue / Library / Stats (chart library chosen in phase 5, follow the dataviz skill).
+- Chores page (`routes/Chores.tsx`): built as tabs "To do" (Overdue / Today / Next 7 days sections) and "All chores"; a Stats tab comes in phase 5 (chart library chosen then, follow the dataviz skill).
 - Members: birthday field; Settings: gamification toggles, iCal feed URL (copy/rotate).
 
 ## Phases (each shippable)
 
-1. **Foundations:** models, `domain/` recurrence expansion + Vitest tests (DST, EXDATE, UNTIL/COUNT), `GET …/calendar`, calendar page showing one-off and repeating chores/events, delete the demo components.
-2. **Interaction:** create/edit dialog with recurrence editor; drag/resize/select with scope handling; optimistic updates; `'calendar'` live topic.
-3. **Chore workflow:** statuses, assignment modes, rotation, after-completion schedules, Today/Overdue lists.
+1. ✅ **Foundations:** models, `domain/` recurrence expansion + Vitest tests (DST, EXDATE, UNTIL/COUNT), `GET …/calendar`, calendar page showing one-off and repeating chores/events, delete the demo components.
+2. ✅ **Interaction:** create/edit dialog with recurrence editor; drag/resize/select with scope handling; optimistic updates; `'calendar'` live topic.
+3. ✅ **Chore workflow:** statuses, assignment modes, rotation, after-completion schedules, Today/Overdue lists.
 4. **Birthdays & vacation:** birthday fields, manual birthdays, vacations with reassignment proposals.
 5. **Stats & motivation:** stats endpoints, dashboard, effort fair share, streaks, badges, leaderboard, toggles.
 6. **iCal:** subscribe feed + import with preview.

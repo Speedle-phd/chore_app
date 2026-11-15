@@ -13,6 +13,7 @@ import {
    SheetTrigger,
 } from '@/components/ui/sheet'
 import { Menu } from 'lucide-react'
+import { useMyOverdueCount } from '@/features/chores/useMyOverdueCount'
 
 type NavigationProps = {
    navigationItems: NavigationItem[]
@@ -24,8 +25,25 @@ const highlightTransition = {
    damping: 32,
 } as const
 
+/** Small count next to a nav item; high-contrast in every theme. */
+const CountBadge = ({ count, className }: { count: number; className?: string }) => (
+   <span
+      aria-hidden
+      className={cn(
+         'grid h-4.5 min-w-4.5 place-items-center rounded-full bg-foreground px-1 text-[0.6875rem] leading-none font-semibold text-background',
+         className,
+      )}
+   >
+      {count > 99 ? '99+' : count}
+   </span>
+)
+
 const Navigation = ({ navigationItems }: NavigationProps) => {
    const [open, setOpen] = useState(false)
+   const overdue = useMyOverdueCount()
+   const badgeFor = (href: string) => (href === '/chores' ? overdue : 0)
+   const nameFor = (href: string, label: string) =>
+      badgeFor(href) ? `${label}, ${badgeFor(href)} overdue` : label
 
    return (
       <>
@@ -39,8 +57,8 @@ const Navigation = ({ navigationItems }: NavigationProps) => {
                   key={href}
                   to={href}
                   end={href === '/'}
-                  title={label}
-                  aria-label={label}
+                  title={nameFor(href, label)}
+                  aria-label={nameFor(href, label)}
                   className='rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
                >
                   {({ isActive }) => (
@@ -67,6 +85,9 @@ const Navigation = ({ navigationItems }: NavigationProps) => {
                         />
                         {/* Icons only between lg and xl, so the header never wraps */}
                         <span className='relative z-10 hidden xl:inline'>{label}</span>
+                        {badgeFor(href) > 0 && (
+                           <CountBadge count={badgeFor(href)} className='absolute -top-1 -right-1 z-20 xl:static' />
+                        )}
                      </span>
                   )}
                </NavLink>
@@ -81,9 +102,11 @@ const Navigation = ({ navigationItems }: NavigationProps) => {
                      <Button
                         variant='outline'
                         size='icon'
-                        aria-label='Open navigation'
+                        aria-label={overdue ? `Open navigation, ${overdue} overdue chores` : 'Open navigation'}
+                        className='relative'
                      >
                         <Menu />
+                        {overdue > 0 && <CountBadge count={overdue} className='absolute -top-1.5 -right-1.5' />}
                      </Button>
                   }
                />
@@ -101,6 +124,7 @@ const Navigation = ({ navigationItems }: NavigationProps) => {
                            to={href}
                            end={href === '/'}
                            onClick={() => setOpen(false)}
+                           aria-label={nameFor(href, label)}
                            className='rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
                         >
                            {({ isActive }) => (
@@ -130,6 +154,7 @@ const Navigation = ({ navigationItems }: NavigationProps) => {
                                        {subtitle}
                                     </span>
                                  </span>
+                                 {badgeFor(href) > 0 && <CountBadge count={badgeFor(href)} className='ms-auto' />}
                               </span>
                            )}
                         </NavLink>
