@@ -1,4 +1,4 @@
-import { Router, type Request } from 'express'
+import { Router, type Request, type RequestHandler } from 'express'
 import { createCalendarRoutes } from '../calendar/calendarRoutes'
 import { createStatsService } from '../calendar/statsService'
 import type { CalendarService } from '../calendar/calendarService'
@@ -6,6 +6,12 @@ import { createReminderRoutes } from '../reminders/reminderRoutes'
 import type { ReminderService } from '../reminders/reminderService'
 import { createHouseholdInvitationRoutes } from '../invitations/invitationRoutes'
 import type { InvitationService } from '../invitations/invitationService'
+import { createHouseholdIcalRoutes } from '../ical/icalRoutes'
+import type { IcalService } from '../ical/icalService'
+import { createShoppingRoutes } from '../shopping/shoppingRoutes'
+import type { ShoppingService } from '../shopping/shoppingService'
+import { createRecipeRoutes } from '../recipes/recipeRoutes'
+import type { RecipeService } from '../recipes/recipeService'
 import { UnauthorizedError } from '../errors'
 import upload from '../middleware/avatarUpload'
 import type { MembershipType } from '../models/membershipModel'
@@ -29,6 +35,10 @@ export function createHouseholdRoutes(
    invitations: InvitationService,
    calendar: CalendarService,
    reminders: ReminderService,
+   ical: IcalService,
+   shopping: ShoppingService,
+   recipes: RecipeService,
+   importLimit: RequestHandler,
 ) {
    const router = Router()
 
@@ -70,6 +80,9 @@ export function createHouseholdRoutes(
    one.use('/invitations', createHouseholdInvitationRoutes(invitations))
    one.use(createCalendarRoutes(calendar, createStatsService(calendar)))
    one.use('/reminders', createReminderRoutes(reminders))
+   one.use('/ical', createHouseholdIcalRoutes(ical))
+   one.use('/shopping', createShoppingRoutes(shopping))
+   one.use('/recipes', createRecipeRoutes(recipes, importLimit))
 
    one.get('/members', async (req, res) => {
       res.json(await households.listMembers(me(req)))

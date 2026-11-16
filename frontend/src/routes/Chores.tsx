@@ -1,14 +1,13 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Temporal } from 'temporal-polyfill'
-import { CalendarCheck, ClipboardList, PartyPopper, Pencil, Plane, Plus, RefreshCw, Repeat, WifiOff } from 'lucide-react'
+import { ClipboardList, PartyPopper, Plane, Plus, RefreshCw, WifiOff, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiError } from '@/api/client'
 import EmptyState from '@/components/EmptyState'
 import PageHeader from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { AvatarStack } from '@/features/calendar/AvatarStack'
 import {
    useCalendarItems,
    useChangeOccurrence,
@@ -19,17 +18,20 @@ import {
 import { ChangeOccurrenceDialog } from '@/features/calendar/ChangeOccurrenceDialog'
 import { ItemDialog, type Draft } from '@/features/calendar/ItemDialog'
 import { OccurrenceDialog } from '@/features/calendar/OccurrenceDialog'
-import { describeRepeat } from '@/features/calendar/recurrence'
 import { nextHourSlot, viewerTimeZone } from '@/features/calendar/time'
-import { ChoreCard, EffortDots } from '@/features/chores/ChoreCard'
+import { ChoreCard } from '@/features/chores/ChoreCard'
+import { ChoreLibrary } from '@/features/chores/ChoreLibrary'
 import { StatsView } from '@/features/stats/StatsView'
-import { dateOf, dayLabel, isMine } from '@/features/chores/format'
+import { YourWeek } from '@/features/stats/YourWeek'
+import { dateOf, dayLabel, isForAny } from '@/features/chores/format'
 import { useHousehold, useMembers } from '@/features/households/householdsApi'
+import { PeopleFilter } from '@/features/households/PeopleFilter'
 import { canDeleteCalendarItem } from '@/features/households/permissions'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { usePageMeta } from './usePageMeta'
 
 type ChoreInstance = CalendarInstance & { chore: ChoreInfo }
+const TABS = ['todo', 'all', 'stats'] as const
 const chores = (list: CalendarInstance[]) => list.filter((i): i is ChoreInstance => i.chore !== null)
 
 const Chores = () => {
@@ -38,21 +40,32 @@ const Chores = () => {
    const members = useMembers(household.id)
    const agenda = useChoreAgenda(household.id)
    const library = useCalendarItems(household.id, 'chore')
-   const [storedOnlyMine, setOnlyMine] = useLocalStorage('chores-only-mine', false)
-   const onlyMine = storedOnlyMine === true
+   // Whose chores to show, per household and device; nobody selected = everyone.
+   const [storedPeople, setPeople] = useLocalStorage(`chores-people-${household.id}`, null)
+   // The former "Only mine" switch carries over once: as "just me".
+   const [legacyOnlyMine] = useLocalStorage('chores-only-mine', false)
 
    const [draft, setDraft] = useState<Draft | null>(null)
    const [editingId, setEditingId] = useState<string | null>(null)
-   const [selected, setSelected] = useState<CalendarInstance | null>(null)
+   const [clicked, setSelected] = useState<CalendarInstance | null>(null)
+   // The tab is in the URL (/chores?tab=stats), so it can be linked and survives a reload.
+   const [params, setParams] = useSearchParams()
+   const tab = TABS.find((t) => t === params.get('tab')) ?? 'todo'
    const [changing, setChanging] = useState<CalendarInstance | null>(null)
 
    const zone = viewerTimeZone()
    const memberList = useMemo(() => members.data ?? [], [members.data])
    const me = memberList.find((m) => m.isMe)
    const canDelete = (createdBy: string) => canDeleteCalendarItem(household.role, createdBy === me?.id)
-   const filter = (list: CalendarInstance[]) => chores(list).filter((i) => !onlyMine || isMine(i, me?.id))
+   const people: string[] = (
+      Array.isArray(storedPeople) ? storedPeople.filter((id): id is string => typeof id === 'string') : legacyOnlyMine === true && me ? [me.id] : []
+   ).filter((id) => memberList.some((m) => m.id === id))
+   const filtered = people.length > 0
+   const filter = (list: CalendarInstance[]) => chores(list).filter((i) => isForAny(i, people))
 
    const data = agenda.data
+   // The open dialog reads the occurrence from the agenda, so marking it done/undo updates it.
+   const selected = clicked && ((data ? [...data.overdue, ...data.today, ...data.upcoming] : []).find((i) => i.id === clicked.id) ?? clicked)
    const overdue = data ? filter(data.overdue) : []
    const today = data ? filter(data.today) : []
    const upcoming = data ? filter(data.upcoming) : []
@@ -109,20 +122,29 @@ const Chores = () => {
             }
          />
 
-         <Tabs defaultValue='todo'>
+         <Tabs value={tab} onValueChange={(v) => setParams(v === 'todo' ? {} : { tab: String(v) }, { replace: true })}>
             <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
                <TabsList>
                   <TabsTrigger value='todo'>To do</TabsTrigger>
                   <TabsTrigger value='all'>All chores</TabsTrigger>
                   <TabsTrigger value='stats'>Stats</TabsTrigger>
                </TabsList>
-               <label className='flex cursor-pointer items-center gap-2 text-sm'>
-                  <Checkbox checked={onlyMine} onCheckedChange={(checked) => setOnlyMine(checked)} />
-                  Only mine
-               </label>
             </div>
+            {/* Stats always cover everyone; the filter applies to To do and All chores. */}
+            {tab !== 'stats' && (
+               <div className='mb-6 flex flex-wrap items-center gap-x-4 gap-y-2'>
+                  <PeopleFilter members={memberList} value={people} onChange={setPeople} />
+                  {filtered && (
+                     <Button variant='ghost' size='sm' onClick={() => setPeople([])}>
+                        <X />
+                        Everyone
+                     </Button>
+                  )}
+               </div>
+            )}
 
             <TabsContent value='todo' className='space-y-8'>
+               <YourWeek householdId={household.id} me={me} />
                {agenda.isPending ? (
                   <div className='space-y-3' aria-busy='true' aria-label='Loading chores'>
                      {[0, 1, 2].map((i) => (
@@ -172,7 +194,7 @@ const Chores = () => {
                         ) : (
                            <p className='flex items-center gap-2 rounded-xl border border-dashed p-4 text-sm text-muted-foreground'>
                               <PartyPopper className='size-4' aria-hidden />
-                              Nothing {onlyMine ? 'for you ' : ''}today.
+                              {filtered ? 'Nothing today for the selected people.' : 'Nothing today.'}
                            </p>
                         )}
                      </section>
@@ -216,43 +238,13 @@ const Chores = () => {
                      </Button>
                   </EmptyState>
                ) : (
-                  <ul className='divide-y rounded-xl border bg-card'>
-                     {library.data
-                        .filter((item) => !onlyMine || item.memberIds.length === 0 || item.memberIds.includes(me?.id ?? ''))
-                        .map((item) => {
-                           const people = item.memberIds.flatMap((id) => memberList.find((m) => m.id === id) ?? [])
-                           return (
-                              <li key={item.id} className='flex flex-wrap items-center gap-3 p-3'>
-                                 <div className='min-w-0 flex-1'>
-                                    <p className='truncate font-medium'>{item.title}</p>
-                                    <p className='flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground'>
-                                       <span className='flex items-center gap-1'>
-                                          {item.rrule || item.afterDays ? (
-                                             <Repeat className='size-3.5' aria-hidden />
-                                          ) : (
-                                             <CalendarCheck className='size-3.5' aria-hidden />
-                                          )}
-                                          {describeRepeat(item.rrule, item.timezone, item.afterDays)}
-                                       </span>
-                                       <EffortDots effort={item.chore.effort} />
-                                       <span>
-                                          {item.chore.assignmentMode === 'everyone'
-                                             ? 'Each of them'
-                                             : item.chore.rotation
-                                               ? 'Taking turns'
-                                               : 'Any one of them'}
-                                       </span>
-                                    </p>
-                                 </div>
-                                 <AvatarStack people={people} max={4} />
-                                 <Button variant='ghost' size='sm' onClick={() => setEditingId(item.id)} aria-label={`Edit “${item.title}”`}>
-                                    <Pencil />
-                                    Edit
-                                 </Button>
-                              </li>
-                           )
-                        })}
-                  </ul>
+                  <ChoreLibrary
+                     householdId={household.id}
+                     items={library.data.filter((item) => isForAny(item, people))}
+                     members={memberList}
+                     canArchive={canDelete}
+                     onEdit={setEditingId}
+                  />
                )}
             </TabsContent>
             <TabsContent value='stats'>

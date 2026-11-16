@@ -18,7 +18,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force \
-    && mkdir -p /app/uploads/avatars && chown -R node:node /app/uploads
+    && mkdir -p /app/uploads/avatars /app/uploads/recipes && chown -R node:node /app/uploads
 COPY --from=build /app/dist ./dist
 USER node
 EXPOSE 3000

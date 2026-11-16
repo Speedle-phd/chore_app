@@ -26,7 +26,7 @@ const CHECK_EMAIL = {
    message: 'If that address can be used, we’ve sent an email with the next step.',
 }
 
-function limiter(limit: number) {
+export function limiter(limit: number) {
    return rateLimit({
       windowMs: 15 * 60_000,
       limit,

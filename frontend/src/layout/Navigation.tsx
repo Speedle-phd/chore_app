@@ -64,7 +64,7 @@ const Navigation = ({ navigationItems }: NavigationProps) => {
                   {({ isActive }) => (
                      <span
                         className={cn(
-                           'relative flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors xl:px-3.5',
+                           'relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors xl:px-2.5',
                            isActive
                               ? 'text-foreground'
                               : 'text-muted-foreground hover:text-foreground',

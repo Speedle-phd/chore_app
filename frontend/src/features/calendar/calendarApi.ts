@@ -3,7 +3,9 @@ import { api } from '@/api/client'
 import { choreState } from './choreState'
 import { viewerTimeZone } from './time'
 
-export type CalendarKind = 'chore' | 'event' | 'birthday' | 'vacation'
+export type CalendarKind = 'chore' | 'event' | 'birthday' | 'vacation' | 'meal'
+/** Meals: the recipe (null = free text) and how many it's for. */
+export type MealInfo = { recipeId: string | null; servings: number }
 export type AssignmentMode = 'anyone' | 'everyone'
 export type CompletionStatus = 'done' | 'skipped'
 export type ChoreState = 'open' | 'partial' | 'done' | 'skipped'
@@ -44,6 +46,9 @@ export type CalendarInstance = {
    source: 'entry' | 'member'
    /** Birthdays: the age reached on this date, when the year is known. */
    age: number | null
+   /** An archived chore's history: can't be marked, moved or skipped. */
+   archived: boolean
+   meal: MealInfo | null
 }
 
 /** A whole entry (series); times are local wall-clock in `timezone`. */
@@ -64,6 +69,9 @@ export type CalendarItem = {
    chore: ChoreSettings
    /** Birthday entries: year of birth (for the age). */
    birthYear: number | null
+   /** Archived chores: since when (ISO); null = active. */
+   archivedAt: string | null
+   meal: MealInfo | null
    createdBy: string
    createdAt: string
    updatedAt: string
@@ -72,7 +80,10 @@ export type CalendarItem = {
 export type ItemInput = Pick<
    CalendarItem,
    'kind' | 'title' | 'notes' | 'allDay' | 'start' | 'end' | 'timezone' | 'memberIds' | 'rrule' | 'afterDays' | 'chore' | 'birthYear'
->
+> & {
+   /** Meals only. Omitted on a replace: the server keeps the stored recipe link. */
+   meal?: MealInfo | null
+}
 
 export type Scope = 'this' | 'following' | 'all'
 /** All-day: `YYYY-MM-DD`; timed: ISO date-time with offset. */
@@ -161,6 +172,7 @@ function useRefreshCalendar(hid: string) {
          queryClient.invalidateQueries({ queryKey: calendarKey(hid) }),
          queryClient.invalidateQueries({ queryKey: choresKey(hid) }),
          queryClient.invalidateQueries({ queryKey: ['household', hid, 'calendar-items'] }),
+         queryClient.invalidateQueries({ queryKey: ['household', hid, 'stats'] }),
       ])
 }
 
@@ -230,6 +242,20 @@ export function useSaveItem(hid: string, id: string | null) {
          id
             ? (await api.put<CalendarItem>(`${itemsUrl(hid)}/${id}`, input)).data
             : (await api.post<CalendarItem>(itemsUrl(hid), input)).data,
+      onSuccess: async (item) => {
+         queryClient.setQueryData(calendarItemKey(hid, item.id), item)
+         await refresh()
+      },
+   })
+}
+
+/** Archive (stop) or restore a chore; the server answers with the updated entry. */
+export function useArchiveChore(hid: string) {
+   const queryClient = useQueryClient()
+   const refresh = useRefreshCalendar(hid)
+   return useMutation({
+      mutationFn: async ({ id, archived }: { id: string; archived: boolean }) =>
+         (await api.post<CalendarItem>(`${itemsUrl(hid)}/${id}/${archived ? 'archive' : 'restore'}`)).data,
       onSuccess: async (item) => {
          queryClient.setQueryData(calendarItemKey(hid, item.id), item)
          await refresh()

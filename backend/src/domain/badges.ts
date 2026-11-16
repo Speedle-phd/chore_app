@@ -24,6 +24,25 @@ export type EarnedBadge = { id: BadgeId; earnedAt: number }
 
 /** Badges a member has earned, with the moment each was reached. */
 export function earnBadges(rows: StatsRow[], memberId: string, tz: string): EarnedBadge[] {
+   return walk(rows, memberId, tz).earned
+}
+
+export type BadgeProgress = { id: BadgeId; value: number; goal: number }
+
+/**
+ * How far a member is towards each badge (value capped at the goal). Counts are
+ * over all time; streak badges count the *current* streak, since a broken one restarts.
+ */
+export function badgeProgress(rows: StatsRow[], memberId: string, tz: string, currentStreak: number): BadgeProgress[] {
+   const { earned, count } = walk(rows, memberId, tz)
+   return BADGES.map((b) => {
+      const value = earned.some((e) => e.id === b.id) ? b.goal : b.measure === 'streak' ? currentStreak : count[b.measure]
+      return { id: b.id, value: Math.min(value, b.goal), goal: b.goal }
+   })
+}
+
+/** One pass over a member's credited completions: what was earned when, and the final counts. */
+function walk(rows: StatsRow[], memberId: string, tz: string) {
    const events = rows
       .flatMap((row) =>
          creditedCompletions(row)
@@ -50,5 +69,5 @@ export function earnBadges(rows: StatsRow[], memberId: string, tz: string): Earn
          if (count[badge.measure] >= badge.goal && !earned.some((e) => e.id === badge.id)) earned.push({ id: badge.id, earnedAt: at })
       }
    }
-   return earned
+   return { earned, count }
 }

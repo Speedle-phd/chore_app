@@ -109,6 +109,42 @@ describe('statistics', () => {
       expect(res.body.badgeCatalog.length).toBeGreaterThan(5)
    })
 
+   it('badge progress per member (all-time counts)', async () => {
+      const res = await ada.as.get(`${base}/stats`, week)
+      const progress = (mid: string) =>
+         Object.fromEntries(
+            (res.body.members.find((m: MemberRow) => m.memberId === mid).progress as { id: string; value: number; goal: number }[]).map((p) => [
+               p.id,
+               `${p.value}/${p.goal}`,
+            ]),
+         )
+      expect(progress(ada.mid)).toMatchObject({ first: '1/1', ten: '3/10', punctual: '2/20', standin: '0/5', week: '0/7' })
+      expect(progress(ben.mid)).toMatchObject({ first: '1/1', ten: '1/10', standin: '1/5' })
+   })
+
+   it('member overview: figures, rank, own activity and latest completions', async () => {
+      const res = await ben.as.get(`${base}/stats/members/${ada.mid}`, week)
+      expect(res.status).toBe(200)
+      expect(res.body.member).toMatchObject({ memberId: ada.mid, points: 5, done: 3, onTime: 2, skipped: 1, missed: 1 })
+      expect([res.body.rank, res.body.ranked]).toEqual([1, 2])
+      // Ada's points only: 2 on the 20th, Tidy 1 + Dishes 2 on the 21st; Ben's 22nd isn't hers.
+      expect(res.body.series.map((p: { points: number }) => p.points)).toEqual([2, 3, 0, 0, 0, 0])
+      expect(res.body.recent.map((c: { title: string; status: string; date: string }) => [c.title, c.status, c.date])).toEqual([
+         ['Dishes', 'skipped', '2026-03-23'],
+         ['Dishes', 'done', '2026-03-21'],
+         ['Tidy', 'done', '2026-03-21'],
+         ['Dishes', 'done', '2026-03-20'],
+      ])
+      expect((await ada.as.get(`${base}/stats/members/${ben.mid}`, week)).body.rank).toBe(2)
+   })
+
+   it('member overview: unknown member or stranger → 404', async () => {
+      expect((await ada.as.get(`${base}/stats/members/000000000000000000000000`, week)).status).toBe(404)
+      expect((await ada.as.get(`${base}/stats/members/nope`, week)).status).toBe(404)
+      const stranger = await signedInUser(app, 'Stranger')
+      expect((await as(stranger.cookie).get(`${base}/stats/members/${ada.mid}`, week)).status).toBe(404)
+   })
+
    it('owners/admins switch the playful parts off; members can’t', async () => {
       expect((await ben.as.patch(`${base}/motivation`, { badges: false })).status).toBe(403)
       expect((await ada.as.patch(`${base}/motivation`, {})).status).toBe(400)
@@ -119,7 +155,10 @@ describe('statistics', () => {
       expect(stats.motivation).toEqual({ leaderboard: true, badges: false, streaks: false })
       expect(stats.members.every((m: MemberRow) => m.badges === null && m.streak === null)).toBe(true)
       expect(stats.badgeCatalog).toEqual([])
-      await ada.as.patch(`${base}/motivation`, { badges: true, streaks: true })
+      expect(stats.members.every((m: { progress: unknown }) => m.progress === null)).toBe(true)
+      await ada.as.patch(`${base}/motivation`, { leaderboard: false })
+      expect((await ben.as.get(`${base}/stats/members/${ada.mid}`, week)).body.rank).toBeNull()
+      await ada.as.patch(`${base}/motivation`, { badges: true, streaks: true, leaderboard: true })
    })
 
    it.each([

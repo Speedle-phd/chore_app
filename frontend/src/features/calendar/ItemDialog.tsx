@@ -40,7 +40,7 @@ const TIME = /^\d{2}:\d{2}$/
 
 const schema = z
    .object({
-      kind: z.enum(['chore', 'event', 'birthday', 'vacation']),
+      kind: z.enum(['chore', 'event', 'birthday', 'vacation', 'meal']),
       title: z.string().trim().min(1, 'Enter a title.').max(120),
       allDay: z.boolean(),
       startDate: z.string().regex(DATE, 'Pick a date.'),

@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
-import { AlertTriangle, CalendarClock, Pencil, Repeat, Trash2, Users } from 'lucide-react'
+import { AlertTriangle, Archive, ArchiveRestore, CalendarClock, ChefHat, Pencil, Repeat, Trash2, Users } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { apiError } from '@/api/client'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -12,6 +13,7 @@ import { EffortDots } from '@/features/chores/ChoreCard'
 import type { Member, Role } from '@/features/households/householdsApi'
 import { avatarSrc, initials } from '@/lib/member'
 import {
+   useArchiveChore,
    useCalendarItem,
    useDeleteItem,
    useDeleteOccurrence,
@@ -39,6 +41,7 @@ export function OccurrenceDialog({ householdId, instance, members, role, canDele
    const item = useCalendarItem(householdId, instance?.recurring && instance.source === 'entry' ? instance.itemId : null)
    const removeItem = useDeleteItem(householdId)
    const removeOccurrence = useDeleteOccurrence(householdId)
+   const archive = useArchiveChore(householdId)
    const [confirming, setConfirming] = useState(false)
    const hintId = useId()
    if (!instance) return null
@@ -47,7 +50,8 @@ export function OccurrenceDialog({ householdId, instance, members, role, canDele
    const mayDeleteSeries = canDelete(instance.createdBy)
    // After-completion chores have no fixed dates to skip: deleting removes the chore.
    const afterCompletion = Boolean(instance.chore?.afterDays)
-   const ruleSeries = instance.recurring && !afterCompletion
+   // An archived chore is history only: no single dates to change; deleting removes the chore.
+   const ruleSeries = instance.recurring && !afterCompletion && !instance.archived
    const scopes: Scope[] = ruleSeries ? (mayDeleteSeries ? ['this', 'following'] : ['this']) : []
    const deletable = ruleSeries || mayDeleteSeries
    const settledHistory = afterCompletion && (instance.chore?.state === 'done' || instance.chore?.state === 'skipped')
@@ -121,6 +125,20 @@ export function OccurrenceDialog({ householdId, instance, members, role, canDele
                   </dd>
                </div>
                {instance.notes && <p className='rounded-lg bg-muted/50 p-3 whitespace-pre-wrap'>{instance.notes}</p>}
+               {instance.meal && (
+                  <p className='flex flex-wrap items-center gap-x-2 text-sm'>
+                     <ChefHat className='size-4 text-muted-foreground' aria-hidden />
+                     For {instance.meal.servings}
+                     {instance.meal.recipeId && (
+                        <Link
+                           to={`/recipes/${instance.meal.recipeId}`}
+                           className='font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50'
+                        >
+                           Open the recipe
+                        </Link>
+                     )}
+                  </p>
+               )}
             </dl>
 
             {instance.chore && (
@@ -148,13 +166,38 @@ export function OccurrenceDialog({ householdId, instance, members, role, canDele
                         members={members}
                      />
                   )}
-                  <ChoreActions
-                     householdId={householdId}
-                     instance={{ ...instance, chore: instance.chore }}
-                     members={members}
-                     role={role}
-                     variant='full'
-                  />
+                  {instance.archived ? (
+                     <div className='flex flex-wrap items-center justify-between gap-2 text-sm'>
+                        <p className='flex items-center gap-2 text-muted-foreground'>
+                           <Archive className='size-4' aria-hidden />
+                           Archived: kept for the history, nothing new is planned.
+                        </p>
+                        {mayDeleteSeries && (
+                           <Button
+                              variant='outline'
+                              size='sm'
+                              disabled={archive.isPending}
+                              onClick={() =>
+                                 archive.mutate(
+                                    { id: instance.itemId, archived: false },
+                                    { onSuccess: () => toast.success(`“${instance.title}” restored`), onError: failed },
+                                 )
+                              }
+                           >
+                              <ArchiveRestore />
+                              Restore
+                           </Button>
+                        )}
+                     </div>
+                  ) : (
+                     <ChoreActions
+                        householdId={householdId}
+                        instance={{ ...instance, chore: instance.chore }}
+                        members={members}
+                        role={role}
+                        variant='full'
+                     />
+                  )}
                </section>
             )}
 
@@ -183,7 +226,7 @@ export function OccurrenceDialog({ householdId, instance, members, role, canDele
                   <Pencil />
                   Edit {instance.recurring ? 'series' : 'entry'}
                </Button>
-               {!settledHistory && (
+               {!settledHistory && !instance.archived && (
                   <Button variant='outline' onClick={() => onChange(instance)}>
                      <CalendarClock />
                      {ruleSeries ? 'Change this occurrence' : 'Move'}
@@ -205,7 +248,7 @@ export function OccurrenceDialog({ householdId, instance, members, role, canDele
             <ScopeDialog
                open={confirming}
                title={ruleSeries ? 'Delete which occurrences?' : `Delete “${instance.title}”?`}
-               description={ruleSeries ? undefined : afterCompletion ? 'This deletes the chore and its history.' : 'This can’t be undone.'}
+               description={ruleSeries ? undefined : afterCompletion || instance.archived ? 'This deletes the chore and its history.' : 'This can’t be undone.'}
                scopes={scopes}
                confirmLabel='Delete'
                destructive

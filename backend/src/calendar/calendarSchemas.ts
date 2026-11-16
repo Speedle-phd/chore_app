@@ -68,6 +68,8 @@ export const itemInputSchema = z
          }),
       /** Birthday entries: year of birth, for the age (optional). */
       birthYear: z.number().int().min(1900).max(2100).nullable().default(null),
+      /** Meals: recipe and servings. Omitted on a replace: keep what's stored; null: none. */
+      meal: z.object({ recipeId: objectId.nullable(), servings: z.number().int().min(1).max(100) }).nullable().optional(),
       /** "Repeat after completion" (chores only): days after the last one was done. */
       afterDays: z.number().int().min(1).max(365).nullable().default(null),
       chore: z
@@ -95,6 +97,10 @@ export const itemInputSchema = z
       }
       if (input.birthYear !== null && input.birthYear > Number(start.slice(0, 4))) {
          ctx.addIssue({ code: 'custom', path: ['birthYear'], message: 'The birth year can’t be after the birthday.' })
+         return z.NEVER
+      }
+      if (input.meal && input.kind !== 'meal') {
+         ctx.addIssue({ code: 'custom', path: ['meal'], message: 'Only meals have a recipe.' })
          return z.NEVER
       }
       if (input.afterDays && input.kind !== 'chore') {

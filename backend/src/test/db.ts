@@ -19,10 +19,11 @@ export function useTestDatabase() {
          dbName: `test_${randomBytes(6).toString('hex')}`,
       })
       await mongoose.connection.syncIndexes()
-   })
+      // Every file builds all models' indexes at once on the shared MongoDB; under full parallel load that can pass 10 s.
+   }, 60_000)
 
    afterAll(async () => {
       await mongoose.connection.dropDatabase()
       await mongoose.disconnect()
-   })
+   }, 60_000)
 }

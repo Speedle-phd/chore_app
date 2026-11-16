@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Cake, Check, CircleSlash, Plane, RefreshCw, Repeat } from 'lucide-react'
+import { AlertTriangle, Cake, Check, CircleSlash, FileUp, Plane, RefreshCw, Repeat } from 'lucide-react'
 import type { EventDisplayInfo, EventInput } from '@fullcalendar/react'
 import { Temporal } from 'temporal-polyfill'
 import { toast } from 'sonner'
@@ -21,11 +21,12 @@ import {
 import { ChangeOccurrenceDialog } from '@/features/calendar/ChangeOccurrenceDialog'
 import { ItemDialog, type Draft } from '@/features/calendar/ItemDialog'
 import { CalendarFilters, type Filters } from '@/features/calendar/CalendarFilters'
-import { ALL_KINDS, KINDS } from '@/features/calendar/kinds'
+import { ALL_KINDS, KINDS, visibleKinds } from '@/features/calendar/kinds'
 import { OccurrenceDialog } from '@/features/calendar/OccurrenceDialog'
 import { ScopeDialog } from '@/features/calendar/ScopeDialog'
 import { instantToParts, nextHourSlot, viewerTimeZone } from '@/features/calendar/time'
 import { useHousehold, useMembers, type Member } from '@/features/households/householdsApi'
+import { ImportDialog } from '@/features/ical/ImportDialog'
 import { canDeleteCalendarItem } from '@/features/households/permissions'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { usePageMeta } from './usePageMeta'
@@ -45,8 +46,8 @@ const toEvent = (instance: CalendarInstance): EventInput => ({
    end: instance.end,
    allDay: instance.allDay,
    color: instance.color ?? KINDS[instance.kind].color,
-   // Birthdays from member profiles are edited in the profile, not here.
-   editable: instance.source === 'entry',
+   // Birthdays from member profiles are edited in the profile; archived chores are history.
+   editable: instance.source === 'entry' && !instance.archived,
    extendedProps: { instance },
 })
 
@@ -118,11 +119,13 @@ const Calendar = () => {
    const [range, setRange] = useState<CalendarRange | null>(null)
    const [viewType, setViewType] = useState(initialView)
    // Remembered per household in this browser.
-   const [storedFilters, setFilters] = useLocalStorage(`calendar-filters-${household.id}`, { kinds: ALL_KINDS, memberIds: [] })
+   const [storedFilters, storeFilters] = useLocalStorage(`calendar-filters-${household.id}`, { kinds: ALL_KINDS, memberIds: [], seen: ALL_KINDS })
    const filters: Filters = {
-      kinds: (storedFilters?.kinds ?? ALL_KINDS).filter((k: string) => (ALL_KINDS as string[]).includes(k)),
+      kinds: visibleKinds(storedFilters),
       memberIds: storedFilters?.memberIds ?? [],
    }
+   // Remember which kinds existed, so kinds added later start visible (visibleKinds).
+   const setFilters = (next: Filters) => storeFilters({ ...next, seen: ALL_KINDS })
    const calendar = useCalendar(household.id, range, {
       kinds: filters.kinds.length < ALL_KINDS.length ? filters.kinds : [],
       memberIds: filters.memberIds,
@@ -132,9 +135,13 @@ const Calendar = () => {
 
    const [draft, setDraft] = useState<Draft | null>(null)
    const [editingId, setEditingId] = useState<string | null>(null)
-   const [selected, setSelected] = useState<CalendarInstance | null>(null)
+   // Keep the clicked occurrence's id and read it from the query, so the open dialog follows
+   // every change (done/undo, live updates); the copy is only a fallback if it leaves the range.
+   const [clicked, setSelected] = useState<CalendarInstance | null>(null)
+   const selected = clicked && ((calendar.data ?? []).find((i) => i.id === clicked.id) ?? clicked)
    const [changing, setChanging] = useState<CalendarInstance | null>(null)
    const [drop, setDrop] = useState<PendingDrop | null>(null)
+   const [importing, setImporting] = useState(false)
    // The highlighted range stays as a preview while the new-entry dialog is open.
    const clearSelection = useRef<() => void>(() => {})
 
@@ -181,7 +188,14 @@ const Calendar = () => {
             title={meta?.label ?? 'Calendar'}
             description={`Chores, events and birthdays of ${household.name}`}
             Icon={meta?.Icon}
+            action={
+               <Button variant='outline' onClick={() => setImporting(true)}>
+                  <FileUp />
+                  Import .ics
+               </Button>
+            }
          />
+         {importing && <ImportDialog householdId={household.id} onClose={() => setImporting(false)} />}
 
          <CalendarFilters
             value={{ ...filters, memberIds: filters.memberIds.filter((id) => memberList.some((m) => m.id === id)) }}

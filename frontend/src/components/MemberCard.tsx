@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { formatBirthday } from '@/features/households/birthday'
 import { Cake, Crown, LogOut, Mail, MailPlus, ShieldCheck, User, UserCog, UserPlus } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { apiError } from '@/api/client'
 import {
@@ -122,7 +122,12 @@ const MemberCard = ({ member, myRole, householdId, online = false }: MemberCardP
             </span>
             <div className='min-w-0 flex-1'>
                <h3 className='flex items-center gap-2 font-semibold'>
-                  <span className='truncate'>{member.fullName}</span>
+                  <Link
+                     to={`/members/${member.id}`}
+                     className='truncate rounded underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50'
+                  >
+                     {member.fullName}
+                  </Link>
                   {member.isMe && (
                      <span className='shrink-0 rounded-full bg-muted px-1.5 text-[0.65rem] font-medium text-muted-foreground'>
                         You

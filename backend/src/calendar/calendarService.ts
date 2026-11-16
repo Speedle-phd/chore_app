@@ -14,6 +14,7 @@ import {
    createRule,
    durationOf,
    expandItem,
+   fromZoned,
    historyOf,
    isOccurrence,
    ruleZone,
@@ -34,16 +35,26 @@ import {
 } from '../domain/seriesEdits'
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors'
 import { birthdaysBetween, parseBirthday } from '../domain/birthdays'
+import type { ImportedOverride } from '../domain/icalImport'
 import { awayOn, vacationConflict } from '../domain/vacations'
 import { canDeleteCalendarItem, canMarkChoreFor } from '../households/permissions'
 import { CalendarItem, type CalendarItemType } from '../models/calendarItemModel'
 import { Membership, type MembershipType } from '../models/membershipModel'
 import { Occurrence } from '../models/occurrenceModel'
+import { Recipe } from '../models/recipeModel'
 import { Reminder } from '../models/reminderModel'
 import { User } from '../models/userModel'
 import { realtime } from '../socket/realtime'
 import type { CalendarQuery, ItemInput, OccurrenceChange, Scope, StatusInput } from './calendarSchemas'
 import { choreSettings, completionView, instanceView, itemView, memberBirthdayView, type CalendarInstance } from './calendarViews'
+
+/** One entry read from an `.ics` file, ready to store. */
+export type ImportDraft = {
+   input: ItemInput
+   uid: string
+   exdates: string[]
+   overrides: ImportedOverride[]
+}
 
 const DAY_MS = 86_400_000
 /** How far back the chore agenda looks for overdue ones. App choice. */
@@ -88,6 +99,11 @@ async function findItem(me: MembershipType, id: string) {
    return item
 }
 
+async function assertRecipe(me: MembershipType, id: string | null | undefined) {
+   if (!id) return
+   if (!(await Recipe.exists({ _id: id, householdId: me.householdId }))) throw new BadRequestError('Pick a recipe of this household.')
+}
+
 async function assertMembers(me: MembershipType, ids: readonly string[] | undefined) {
    if (!ids?.length) return
    const found = await Membership.countDocuments({ _id: { $in: ids }, householdId: me.householdId })
@@ -102,9 +118,14 @@ async function applySpan(item: CalendarItemType, overrides?: OccurrenceOverride[
    item.rangeEnd = span.to
 }
 
-const assertDeletable = (me: MembershipType, item: CalendarItemType) => {
+/** Archived chores are history only: restore them before marking, moving or skipping. */
+const assertActive = (item: { archivedAt?: Date | null }) => {
+   if (item.archivedAt) throw new ConflictError('This chore is archived. Restore it first.')
+}
+
+const assertDeletable = (me: MembershipType, item: CalendarItemType, action: 'delete' | 'archive' | 'restore' = 'delete') => {
    if (!canDeleteCalendarItem(me.role, item.createdBy.equals(me._id))) {
-      throw new ForbiddenError('Only the person who added this entry or an admin can delete it.')
+      throw new ForbiddenError(`Only the person who added this entry or an admin can ${action} it.`)
    }
 }
 
@@ -224,7 +245,11 @@ export function createCalendarService() {
          }
          const pool = item.memberIds.map(String)
          const settings = choreSettings(item)
-         return expandItem(timing, itemOverrides.map(overrideOf), window).map((instance) => {
+         // Archived chores: only what was done or skipped (history) stays.
+         const instances = expandItem(timing, itemOverrides.map(overrideOf), window).filter(
+            (instance) => !item.archivedAt || Boolean(byOriginal.get(instance.originalStart)?.completions?.length),
+         )
+         return instances.map((instance) => {
             const override = byOriginal.get(instance.originalStart)
             const reassigned = override?.memberIds ? override.memberIds.map(String) : null
             const assignees =
@@ -306,6 +331,106 @@ export function createCalendarService() {
          return items.map(itemView)
       },
 
+      /**
+       * Stores entries read from an `.ics` file (validated by the caller with the
+       * item schema), with their skipped dates and moved occurrences. Returns how many.
+       */
+      async importItems(me: MembershipType, drafts: ImportDraft[], now: Date) {
+         if (!drafts.length) return 0
+         const items = []
+         const occurrences = []
+         for (const { input, uid, exdates, overrides } of drafts) {
+            const item = new CalendarItem({
+               householdId: me.householdId,
+               createdBy: me._id,
+               kind: input.kind,
+               title: input.title,
+               notes: input.notes,
+               color: input.color,
+               allDay: input.allDay,
+               start: input.start,
+               end: input.end,
+               timezone: input.timezone,
+               memberIds: [],
+               recurrence: { rrule: input.rrule, exdates: input.rrule ? exdates : [], afterDays: null },
+               chore: input.chore,
+               birthYear: null,
+               source: { uid, importedAt: now },
+            })
+            // Moved occurrences only count when they belong to the series.
+            const timing = timingOf(item)
+            const zone = ruleZone(timing)
+            const rule = timing.rrule ? createRule(timing.rrule, toZoned(timing, timing.start, zone), []) : null
+            const duration = durationOf(timing)
+            const valid = (rule ? overrides : [])
+               .filter((o) => isOccurrence(timing, rule, o.originalStart, new Set(timing.exdates), zone, []))
+               // Only what differs from the series, as for occurrences changed in the app.
+               .map((o) => ({
+                  originalStart: o.originalStart,
+                  start: o.start === o.originalStart ? null : o.start,
+                  end: o.end === shiftLocal(timing.allDay, o.start, duration) ? null : o.end,
+               }))
+               .filter((o) => o.start || o.end)
+            await applySpan(item, valid)
+            items.push(item)
+            occurrences.push(...valid.map((o) => ({ householdId: me.householdId, itemId: item._id, ...o })))
+         }
+         await CalendarItem.insertMany(items)
+         if (occurrences.length) await Occurrence.insertMany(occurrences)
+         changed(me)
+         return items.length
+      },
+
+      /** Stops a chore: from now on only its history is listed (see the listing). */
+      async archive(me: MembershipType, id: string, now: Date) {
+         const item = await findItem(me, id)
+         if (item.kind !== 'chore') throw new BadRequestError('Only chores can be archived.')
+         assertDeletable(me, item, 'archive')
+         if (!item.archivedAt) {
+            item.archivedAt = now
+            await item.save()
+            changed(me)
+         }
+         return itemView(item)
+      },
+
+      /**
+       * Starts an archived chore again from today: dates of a repeat that fell in the
+       * archived time are skipped (not missed); an after-completion chore's open one
+       * moves to today; a one-off keeps its date.
+       */
+      async restore(me: MembershipType, id: string, now: Date) {
+         const item = await findItem(me, id)
+         assertDeletable(me, item, 'restore')
+         const since = item.archivedAt
+         if (!since) return itemView(item)
+         const timing = timingOf(item)
+         const zone = ruleZone(timing)
+         const nowZoned = Temporal.Instant.fromEpochMilliseconds(now.getTime()).toZonedDateTimeISO(zone)
+         if (timing.rrule) {
+            const settled = new Set(
+               (await Occurrence.find({ itemId: item._id, 'completions.0': { $exists: true } }).select('originalStart').lean()).map(
+                  (o) => o.originalStart,
+               ),
+            )
+            const from = Temporal.Instant.fromEpochMilliseconds(since.getTime()).toZonedDateTimeISO(zone)
+            const gap = createRule(timing.rrule, toZoned(timing, timing.start, zone), [])
+               .between(from, nowZoned, true)
+               .map((z) => fromZoned(timing, Temporal.ZonedDateTime.from(z.toString())))
+               .filter((d) => !settled.has(d))
+            item.recurrence.exdates = [...new Set([...timing.exdates, ...gap])]
+         } else if (timing.afterDays && Temporal.ZonedDateTime.compare(toZoned(timing, item.start, zone), nowZoned) < 0) {
+            const today = nowZoned.toPlainDate().toString()
+            const start = timing.allDay ? today : `${today}${item.start.slice(10)}`
+            item.set({ start, end: shiftLocal(timing.allDay, start, durationOf(timing)) })
+         }
+         item.archivedAt = null
+         await applySpan(item)
+         await item.save()
+         changed(me)
+         return itemView(item)
+      },
+
       async get(me: MembershipType, id: string) {
          return itemView(await findItem(me, id))
       },
@@ -327,7 +452,9 @@ export function createCalendarService() {
             recurrence: { rrule: input.rrule, exdates: [], afterDays: input.afterDays },
             chore: input.chore,
             birthYear: input.birthYear,
+            meal: input.kind === 'meal' ? (input.meal ?? null) : null,
          })
+         await assertRecipe(me, input.meal?.recipeId)
          await applySpan(item, [])
          await item.save()
          changed(me)
@@ -365,7 +492,11 @@ export function createCalendarService() {
             },
             chore: input.chore,
             birthYear: input.birthYear,
+            archivedAt: input.kind === 'chore' ? item.archivedAt : null,
+            // A replace without `meal` keeps the recipe link (the calendar's edit dialog doesn't know about it).
+            meal: input.kind !== 'meal' ? null : input.meal === undefined ? item.meal : input.meal,
          })
+         await assertRecipe(me, input.meal?.recipeId)
          const kept = timingChanged
             ? await Occurrence.find({ itemId: item._id, 'completions.0': { $exists: true } }).lean()
             : undefined
@@ -388,6 +519,7 @@ export function createCalendarService() {
       /** Move, resize or reassign one occurrence, this and following, or all. */
       async changeOccurrence(me: MembershipType, id: string, originalStart: string, scope: Scope, change: OccurrenceChange) {
          const item = await findItem(me, id)
+         assertActive(item)
          const overrides = await Occurrence.find({ itemId: item._id }).lean()
          const original = occurrenceKey(item, originalStart, overrides.map(overrideOf))
          await assertMembers(me, change.memberIds)
@@ -498,6 +630,7 @@ export function createCalendarService() {
             memberIds: tailMembers,
             recurrence: { rrule: afterRrule, exdates: timing.exdates.filter(fromSplit).map(shift), afterDays: null },
             chore: settings,
+            meal: item.meal,
          })
          const tailOverrides = overrides
             .filter((o) => fromSplit(o.originalStart))
@@ -530,6 +663,7 @@ export function createCalendarService() {
       /** Delete one occurrence (skip it) or this and all following ones. */
       async removeOccurrence(me: MembershipType, id: string, originalStart: string, scope: 'this' | 'following') {
          const item = await findItem(me, id)
+         assertActive(item)
          const original = occurrenceKey(item, originalStart)
          const timing = timingOf(item)
          const rrule = timing.rrule
@@ -567,6 +701,7 @@ export function createCalendarService() {
       async setStatus(me: MembershipType, id: string, originalStart: string, input: StatusInput, now: Date) {
          const item = await findItem(me, id)
          if (item.kind !== 'chore') throw new BadRequestError('Only chores can be marked done.')
+         assertActive(item)
          const overrides = await Occurrence.find({ itemId: item._id }).lean()
          const timing = timingOf(item)
          const original = occurrenceKey(item, originalStart, overrides.map(overrideOf))

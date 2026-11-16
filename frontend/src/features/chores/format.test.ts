@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { conflictText, dateOf, dayLabel, isMine, whenText } from './format'
+import { conflictText, dateOf, dayLabel, isForAny, isMine, whenText } from './format'
 
 const BERLIN = 'Europe/Berlin'
 
@@ -42,5 +42,16 @@ describe('conflictText', () => {
       ['nobody free', { away: ['a', 'b'], suggestion: null }, ['a', 'b'], { awayText: 'Ada and Ben are away', action: null }],
    ])('%s', (_name, conflict, assignees, expected) => {
       expect(conflictText(conflict, assignees, people)).toEqual(expected)
+   })
+})
+
+describe('isForAny', () => {
+   it.each([
+      ['nobody selected: everything', ['a'], [], true],
+      ['assigned to a selected person', ['a', 'b'], ['b'], true],
+      ['assigned to someone else', ['a'], ['b', 'c'], false],
+      ['for nobody in particular (anyone may)', [], ['b'], true],
+   ])('%s', (_name, assigned, selected, expected) => {
+      expect(isForAny({ memberIds: assigned }, selected)).toBe(expected)
    })
 })

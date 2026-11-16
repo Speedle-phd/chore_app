@@ -157,6 +157,8 @@ describe('GET /api/households/:hid/calendar', () => {
          },
          source: 'entry',
          age: null,
+         archived: false,
+         meal: null,
       })
    })
 

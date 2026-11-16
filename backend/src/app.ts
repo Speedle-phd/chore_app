@@ -7,6 +7,7 @@ import type { Env } from './config/env'
 import {
    createAuthRoutes,
    DEFAULT_RATE_LIMITS,
+   limiter,
    type RateLimits,
 } from './auth/authRoutes'
 import { createAuthService } from './auth/authService'
@@ -18,6 +19,10 @@ import { createAccountRoutes, createUserSearchRoutes } from './account/accountRo
 import { createAccountService } from './account/accountService'
 import { createCalendarService } from './calendar/calendarService'
 import { createReminderService } from './reminders/reminderService'
+import { createFeedRoutes } from './ical/icalRoutes'
+import { createIcalService } from './ical/icalService'
+import { createShoppingService } from './shopping/shoppingService'
+import { createRecipeService } from './recipes/recipeService'
 import { createHouseholdRoutes } from './households/householdRoutes'
 import { createInvitationRoutes } from './invitations/invitationRoutes'
 import { createInvitationService } from './invitations/invitationService'
@@ -35,11 +40,18 @@ export function corsOptions(env: Pick<Env, 'APP_URL'>) {
    }
 }
 
+/** Feed fetches per IP per 15 minutes; calendar services poll from shared addresses. App choice. */
+const FEED_RATE_LIMIT = 300
+/** Recipe imports per IP per 15 minutes: each one makes the server fetch another website. App choice. */
+const IMPORT_RATE_LIMIT = 60
+
 /** Replaceable collaborators (tests swap in fakes for email and the breach API). */
 export type AppDeps = {
    sendMail?: SendMail
    isBreached?: BreachCheck
    rateLimits?: RateLimits
+   /** Tests only: addresses the recipe importer may fetch despite the SSRF rules (a local test server). */
+   allowFetchAddress?: (address: string) => boolean
 }
 
 /** Builds the HTTP app without starting a server or connecting to MongoDB (testable). */
@@ -77,8 +89,10 @@ export function createApp(env: Env, deps: AppDeps = {}) {
       avatarDir: env.AVATAR_UPLOAD_DIR,
    })
 
-   const households = createHouseholdService({ avatarDir: env.AVATAR_UPLOAD_DIR })
+   const households = createHouseholdService({ avatarDir: env.AVATAR_UPLOAD_DIR, recipeDir: env.RECIPE_UPLOAD_DIR })
    const calendar = createCalendarService()
+   const ical = createIcalService({ calendar, appUrl: env.APP_URL })
+   const shopping = createShoppingService()
    const account = createAccountService({ households, sessions, avatarDir: env.AVATAR_UPLOAD_DIR })
 
    const appOrigin = new URL(env.APP_URL)
@@ -97,10 +111,22 @@ export function createApp(env: Env, deps: AppDeps = {}) {
    app.use(
       '/api/households',
       sessions.requireSession,
-      createHouseholdRoutes(households, invitations, calendar, createReminderService(calendar)),
+      createHouseholdRoutes(
+         households,
+         invitations,
+         calendar,
+         createReminderService(calendar),
+         ical,
+         shopping,
+         createRecipeService({ shopping, calendar, imageDir: env.RECIPE_UPLOAD_DIR, ...(deps.allowFetchAddress ? { allowFetchAddress: deps.allowFetchAddress } : {}) }),
+         limiter(IMPORT_RATE_LIMIT),
+      ),
    )
+   // Calendar apps fetch subscribed feeds without a session; the secret link is the key.
+   app.use('/api/ical', createFeedRoutes(ical, limiter(FEED_RATE_LIMIT)))
    app.use('/api/invitations', createInvitationRoutes(invitations, sessions.requireSession, limits.token))
    app.use('/uploads/avatars', express.static(env.AVATAR_UPLOAD_DIR))
+   app.use('/uploads/recipes', express.static(env.RECIPE_UPLOAD_DIR))
 
    app.use(notFound)
    app.use(errorHandler)

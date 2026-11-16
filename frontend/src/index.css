@@ -50,6 +50,9 @@
 }
 
 :root {
+  /* Light theme text colours are set for WCAG AA (4.5:1) on every light surface, including the
+     muted and accent tints (checked 2026-11-16): muted-foreground ≥ 4.78, primary on its tints ≥ 4.64,
+     destructive on its tint 4.94, white on primary 5.68 / on destructive 5.71. */
    --theme: var(--primary);
   /* Core surfaces */
   --background: #F6F8F6;
@@ -62,7 +65,7 @@
   --popover-foreground: #24332E;
 
   /* Brand: sage green */
-  --primary: #477A68;
+  --primary: #3F7060;
   --primary-foreground: #FFFFFF;
 
   /* Secondary surfaces */
@@ -70,14 +73,14 @@
   --secondary-foreground: #304D40;
 
   --muted: #ECEFE9;
-  --muted-foreground: #68776E;
+  --muted-foreground: #5A6960;
 
   /* Accent: warm amber */
   --accent: #F5E8CE;
   --accent-foreground: #73501E;
 
   /* Feedback */
-  --destructive: #C65353;
+  --destructive: #B23F3F;
 
   /* Borders and focus */
   --border: #E2E8E3;
@@ -85,7 +88,7 @@
   --ring: #6C9D87;
 
   /* Charts */
-  --chart-1: #477A68;
+  --chart-1: #3F7060;
   --chart-2: #D9A441;
   --chart-3: #7599B5;
   --chart-4: #C98575;
@@ -96,7 +99,7 @@
   /* Sidebar */
   --sidebar: #EEF2EC;
   --sidebar-foreground: #304139;
-  --sidebar-primary: #477A68;
+  --sidebar-primary: #3F7060;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #DDE9DF;
   --sidebar-accent-foreground: #304D40;

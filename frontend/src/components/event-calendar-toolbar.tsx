@@ -36,7 +36,8 @@ export function EventCalendarToolbar({
         )}
         <Button
           onClick={() => controller.today()}
-          aria-label={buttons.today.hint}
+          // The visible "Today" is the name (WCAG 2.5.3); FullCalendar's hint ("This Month") is only a tooltip.
+          title={buttons.today.hint}
           variant="outline"
         >{buttons.today.text}</Button>
         <div className="flex items-center">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { earnBadges } from './badges'
+import { badgeProgress, earnBadges } from './badges'
 import { activitySeries, choreStats, creditedCompletions, fairShare, memberStats, streaks, totals, type StatsRow } from './stats'
 
 const TZ = 'Europe/Berlin'
@@ -106,5 +106,31 @@ describe('earnBadges', () => {
       )
       expect(earnBadges(rows, 'ada', TZ).map((b) => b.id)).toEqual(['first', 'heavy', 'standin'])
       expect(earnBadges(rows, 'ben', TZ)).toEqual([])
+   })
+})
+
+describe('badgeProgress', () => {
+   // Three done: 10–12 March; the 11th is effort 4, the 12th was done after it was due.
+   const rows = [
+      row({ due: ms('2026-03-10T20:00:00Z'), completions: [done('ada', '2026-03-10T18:00:00Z')] }),
+      row({ effort: 4, due: ms('2026-03-11T20:00:00Z'), completions: [done('ada', '2026-03-11T18:00:00Z')] }),
+      row({ due: ms('2026-03-12T08:00:00Z'), completions: [done('ada', '2026-03-12T18:00:00Z')] }),
+   ]
+   it('counts towards each goal; earned ones are full; streak badges use the current streak', () => {
+      const progress = Object.fromEntries(badgeProgress(rows, 'ada', TZ, 2).map((p) => [p.id, `${p.value}/${p.goal}`]))
+      expect(progress).toEqual({
+         first: '1/1',
+         ten: '3/10',
+         fifty: '3/50',
+         hundred: '3/100',
+         punctual: '2/20',
+         heavy: '1/5',
+         standin: '0/5',
+         week: '2/7',
+         month: '2/30',
+      })
+   })
+   it('someone with nothing done starts at zero', () => {
+      expect(badgeProgress(rows, 'ben', TZ, 0).every((p) => p.value === 0)).toBe(true)
    })
 })

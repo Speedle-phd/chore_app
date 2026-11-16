@@ -17,6 +17,9 @@ export const canRemove = (actor: Role, target: Role) =>
 /** Anyone in the household may add and edit calendar entries; deleting a series is for its creator or admins. */
 export const canDeleteCalendarItem = (role: Role, isCreator: boolean) => isCreator || canManage(role)
 
+/** Deleting something shared, like a shopping list or a recipe: who made it, or admins and owners. */
+export const canDeleteShared = (role: Role, isCreator: boolean) => isCreator || canManage(role)
+
 /**
  * Marking a chore done/skipped for someone: yourself always; profiles (no login,
  * e.g. a child) by anyone; other accounts only by admins and owners.

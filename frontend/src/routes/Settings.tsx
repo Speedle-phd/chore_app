@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import SettingsSection from '@/components/SettingsSection'
 import HouseholdNameForm from '@/features/households/HouseholdNameForm'
 import { RemindersSection } from '@/features/reminders/RemindersSection'
+import { FeedSection } from '@/features/ical/FeedSection'
 import { MotivationSection } from '@/features/stats/MotivationSection'
 import {
    useDeleteHousehold,
@@ -73,6 +74,13 @@ const Settings = () => {
                description='Get reminded of birthdays and events. Only you see your reminders.'
             >
                <RemindersSection householdId={household.id} />
+            </SettingsSection>
+
+            <SettingsSection
+               title='Calendar app'
+               description='See this household’s calendar in Google Calendar, Apple Calendar or Outlook through a private link. It’s read-only; they refresh it every few hours.'
+            >
+               <FeedSection householdId={household.id} />
             </SettingsSection>
 
             <SettingsSection title='Leave' description='Stop being part of this household. Someone can invite you again later.'>

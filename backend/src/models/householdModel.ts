@@ -17,6 +17,8 @@ const householdSchema = new Schema(
          ),
          default: () => ({}),
       },
+      /** When the default shopping categories and first list were created (claimed atomically, once). */
+      shoppingSeededAt: { type: Date, default: null },
    },
    { timestamps: true },
 )

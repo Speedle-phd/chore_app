@@ -6,6 +6,7 @@ import { useHouseholdRoom } from '@/features/realtime/useHouseholdRoom'
 import { useSyncTimezone } from '@/features/account/useSyncTimezone'
 import {
    Calendar,
+   ChefHat,
    ClipboardCheck,
    Home,
    Settings,
@@ -39,10 +40,16 @@ const navigationItems = [
       subtitle: 'The schnuffis who make this place schnuffelicious',
    },
    {
-      label: 'Shopping List',
+      label: 'Shopping',
       href: '/shopping-list',
       Icon: ShoppingCartPlus,
       subtitle: 'Never forget the milk again',
+   },
+   {
+      label: 'Recipes',
+      href: '/recipes',
+      Icon: ChefHat,
+      subtitle: 'What’s cooking, and what it needs',
    },
    {
       label: 'Settings',

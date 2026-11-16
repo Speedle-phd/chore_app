@@ -7,6 +7,9 @@ export function householdKeys(householdId: string, topics: HouseholdTopic[]): Qu
    for (const topic of topics) {
       if (topic === 'members') keys.push(['household', householdId, 'members'], ['households']) // counts in the switcher
       if (topic === 'invitations') keys.push(['household', householdId, 'invitations'])
+      // Lists, items, categories and suggestions.
+      if (topic === 'shopping') keys.push(['household', householdId, 'shopping'])
+      if (topic === 'recipes') keys.push(['household', householdId, 'recipes'])
       if (topic === 'household') keys.push(['households'], ['household', householdId, 'stats'])
       // Prefix: every loaded range and every open entry of this household's calendar.
       if (topic === 'calendar') {

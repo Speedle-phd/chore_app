@@ -18,5 +18,8 @@ export const ROLE_LABEL: Record<Role, string> = {
 
 export const canDeleteCalendarItem = (role: Role, isCreator: boolean) => isCreator || canManage(role)
 
+/** Deleting something shared, like a shopping list or a recipe: who made it, or admins and owners. */
+export const canDeleteShared = (role: Role, isCreator: boolean) => isCreator || canManage(role)
+
 export const canMarkChoreFor = (role: Role, isSelf: boolean, targetHasLogin: boolean) =>
    isSelf || !targetHasLogin || canManage(role)

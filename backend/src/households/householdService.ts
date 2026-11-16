@@ -2,6 +2,10 @@ import { isValidObjectId, type Types } from 'mongoose'
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors'
 import { deleteAvatar, saveAvatar } from '../media/avatars'
 import { Household } from '../models/householdModel'
+import { IcalFeed } from '../models/icalFeedModel'
+import { Recipe } from '../models/recipeModel'
+import { deleteImage, RECIPE_IMAGES } from '../media/images'
+import { ItemMemory, ShoppingCategory, ShoppingItem, ShoppingList } from '../models/shoppingModels'
 import { CalendarItem } from '../models/calendarItemModel'
 import { Invitation } from '../models/invitationModel'
 import { Membership, type MembershipType, type Role } from '../models/membershipModel'
@@ -15,7 +19,7 @@ import { canChangeRoles, canDeleteHousehold, canManage, canRemove } from './perm
 type ProfileInput = { fname: string; lname: string; birthday?: string | null | undefined }
 
 /** The caller's own membership (from requireMembership) is passed in as `me`. */
-export function createHouseholdService({ avatarDir }: { avatarDir: string }) {
+export function createHouseholdService({ avatarDir, recipeDir }: { avatarDir: string; recipeDir: string }) {
    async function findTarget(householdId: Types.ObjectId, memberId: string) {
       const target = isValidObjectId(memberId)
          ? await Membership.findOne({ _id: memberId, householdId })
@@ -31,6 +35,8 @@ export function createHouseholdService({ avatarDir }: { avatarDir: string }) {
       await target.deleteOne()
       // Their reminders, and others' reminders for their birthday.
       await Reminder.deleteMany({ $or: [{ membershipId: target._id }, { 'target.memberId': target._id }] })
+      // Their calendar link stops working.
+      await IcalFeed.deleteMany({ membershipId: target._id })
       if (target.profile?.avatarUrl) await deleteAvatar(target.profile.avatarUrl, avatarDir)
       if (target.userId) {
          await User.updateOne(
@@ -112,6 +118,13 @@ export function createHouseholdService({ avatarDir }: { avatarDir: string }) {
          await Occurrence.deleteMany({ householdId: me.householdId })
          await CalendarItem.deleteMany({ householdId: me.householdId })
          await Reminder.deleteMany({ householdId: me.householdId })
+         await IcalFeed.deleteMany({ householdId: me.householdId })
+         const recipes = await Recipe.find({ householdId: me.householdId }).select('imageUrl').lean()
+         for (const r of recipes) await deleteImage(r.imageUrl, recipeDir, RECIPE_IMAGES)
+         await Recipe.deleteMany({ householdId: me.householdId })
+         for (const Model of [ShoppingItem, ShoppingList, ShoppingCategory, ItemMemory] as const) {
+            await (Model as typeof ShoppingItem).deleteMany({ householdId: me.householdId })
+         }
          await Household.deleteOne({ _id: me.householdId })
       },
 

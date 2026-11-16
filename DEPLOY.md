@@ -19,6 +19,15 @@ person at 08:00 in their time zone). It is the backend image started with
 its runs (every 15 minutes). Running it twice is safe: each person's day is
 claimed in the database and sent once. Logs: `docker compose -f compose.prod.yaml logs worker`.
 
+Calendar links (Settings → Calendar app) look like `https://<DOMAIN>/api/ical/<token>.ics`
+and are built from `APP_URL`. Google, Apple and Outlook fetch them from their own
+servers, so subscribing only works on a public deployment, not on `localhost`.
+
+Recipe import (Recipes → Import from link) makes the backend fetch the given web
+page and its photo, so the backend needs outbound HTTP/HTTPS. It refuses private
+and local addresses on its own. Recipe photos are stored next to the avatars
+(`/app/uploads/recipes`, same `avatar_uploads` volume), so back up that volume.
+
 ## Requirements
 
 - A Linux server with Docker and Docker Compose v2.24 or newer.

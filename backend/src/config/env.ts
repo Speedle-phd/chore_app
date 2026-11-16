@@ -32,6 +32,10 @@ const envSchema = z.object({
    AVATAR_UPLOAD_DIR: z
       .string()
       .default(path.resolve(process.cwd(), 'uploads', 'avatars')),
+   /** Recipe photos; next to the avatars (same volume in Compose). */
+   RECIPE_UPLOAD_DIR: z
+      .string()
+      .default(path.resolve(process.cwd(), 'uploads', 'recipes')),
    /** Internal URL of the mailer service (not reachable from outside Compose). */
    MAILER_URL: z.url().default('http://mailer:8000'),
    MAILER_KEY: z.string().min(32, 'MAILER_KEY must be at least 32 characters'),

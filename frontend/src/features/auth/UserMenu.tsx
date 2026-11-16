@@ -25,7 +25,8 @@ const UserMenu = () => {
    return (
       <DropdownMenu>
          <DropdownMenuTrigger
-            aria-label={`Account menu for ${user.fullName}`}
+            // Starts with the visible initials, so voice users can say what they see (WCAG 2.5.3).
+            aria-label={`${initials.toUpperCase()}, account menu for ${user.fullName}`}
             className='rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
          >
             <Avatar>

@@ -41,6 +41,9 @@ export function createCalendarRoutes(calendar: CalendarService, stats: StatsServ
    router.get('/stats', async (req, res) => {
       res.json(await stats.stats(me(req), statsQuerySchema.parse(req.query), new Date()))
    })
+   router.get('/stats/members/:mid', async (req, res) => {
+      res.json(await stats.member(me(req), String(req.params.mid), statsQuerySchema.parse(req.query), new Date()))
+   })
    router.post('/calendar-items', async (req, res) => {
       res.status(201).json(await calendar.create(me(req), itemInputSchema.parse(req.body)))
    })
@@ -49,6 +52,12 @@ export function createCalendarRoutes(calendar: CalendarService, stats: StatsServ
    })
    router.put('/calendar-items/:id', async (req, res) => {
       res.json(await calendar.update(me(req), itemId(req), itemInputSchema.parse(req.body)))
+   })
+   router.post('/calendar-items/:id/archive', async (req, res) => {
+      res.json(await calendar.archive(me(req), itemId(req), new Date()))
+   })
+   router.post('/calendar-items/:id/restore', async (req, res) => {
+      res.json(await calendar.restore(me(req), itemId(req), new Date()))
    })
    router.delete('/calendar-items/:id', async (req, res) => {
       await calendar.remove(me(req), itemId(req))

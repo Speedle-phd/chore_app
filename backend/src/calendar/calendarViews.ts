@@ -18,7 +18,13 @@ type StoredItem = {
    recurrence: { rrule?: string | null; afterDays?: number | null }
    chore?: ChoreSettings | null
    birthYear?: number | null
+   archivedAt?: Date | null
+   meal?: { recipeId?: Types.ObjectId | null; servings?: number | null } | null
 }
+
+export type MealView = { recipeId: string | null; servings: number }
+const mealView = (item: StoredItem): MealView | null =>
+   item.kind === 'meal' ? { recipeId: item.meal?.recipeId?.toString() ?? null, servings: item.meal?.servings ?? 4 } : null
 
 type StoredCompletion = {
    memberId: Types.ObjectId
@@ -67,6 +73,10 @@ export type CalendarInstance = {
    source: 'entry' | 'member'
    /** Birthdays: the age reached on this occurrence, when the birth year is known. */
    age: number | null
+   /** The entry is an archived chore (history only; can't be marked or moved). */
+   archived: boolean
+   /** Meals: the recipe and servings. */
+   meal: MealView | null
 }
 
 export const choreSettings = (item: { chore?: ChoreSettings | null }) => ({
@@ -109,6 +119,8 @@ export function instanceView(
       chore: chore ? { ...choreSettings(item), afterDays: item.recurrence.afterDays ?? null, ...chore } : null,
       source: 'entry',
       age: item.kind === 'birthday' && item.birthYear ? ageIn(instance.originalStart, item.birthYear) : null,
+      archived: Boolean(item.archivedAt),
+      meal: mealView(item),
    }
 }
 
@@ -132,6 +144,8 @@ export function memberBirthdayView(member: { id: string; fname: string }, date: 
       chore: null,
       source: 'member',
       age,
+      archived: false,
+      meal: null,
    }
 }
 
@@ -158,6 +172,9 @@ export type CalendarItemView = {
    exdates: string[]
    chore: { effort: number; assignmentMode: AssignmentMode; rotation: boolean }
    birthYear: number | null
+   /** Archived chores: when (ISO); null = active. */
+   archivedAt: string | null
+   meal: MealView | null
    createdBy: string
    createdAt: string
    updatedAt: string
@@ -189,6 +206,8 @@ export function itemView(item: FullItem): CalendarItemView {
       exdates: [...item.recurrence.exdates],
       chore: choreSettings(item),
       birthYear: item.birthYear ?? null,
+      archivedAt: item.archivedAt?.toISOString() ?? null,
+      meal: mealView(item),
       createdBy: item.createdBy.toString(),
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),

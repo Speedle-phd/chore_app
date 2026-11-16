@@ -1,6 +1,6 @@
 # Plan: Calendar + Chores
 
-Status: **phases 1–5 and 7 done** (2026-11-16), plus calendar filters; phase 6 (iCal) next. Prerequisite (login + households) is done; see [login-and-households.md](login-and-households.md) and [../HANDOFF.md](../HANDOFF.md).
+Status: **all phases done** (1–5 and 7 on 2026-11-16, 6 on 2026-11-15), plus calendar filters and reminder subscriptions. Prerequisite (login + households) is done; see [login-and-households.md](login-and-households.md) and [../HANDOFF.md](../HANDOFF.md).
 
 ## Context
 
@@ -60,6 +60,7 @@ Phase 1 implemented the common fields, `recurrence { rrule, exdates }` and deriv
 - Built in phase 3: `GET …/chores?tz` (agenda: overdue / today / next 7 days) and `GET …/calendar-items?kind=`.
 - `GET …/stats?from&to&groupBy=member|chore`, `GET …/stats/leaderboard`, `GET …/badges`.
 - `GET /api/ical/:token.ics` (feed, token hashed), `POST …/ical/import` (preview, then confirm), `POST …/ical/token/rotate`.
+- Built in phase 6: `GET|POST|PATCH|DELETE …/ical/feed` (POST creates or replaces the link, PATCH sets the scope `all|mine`), `POST …/ical/import/preview` and `POST …/ical/import` (multipart: `file`, `kind`, `tz`, `uids`).
 
 ## Frontend
 
@@ -76,7 +77,7 @@ Phase 1 implemented the common fields, `recurrence { rrule, exdates }` and deriv
 3. ✅ **Chore workflow:** statuses, assignment modes, rotation, after-completion schedules, Today/Overdue lists.
 4. ✅ **Birthdays & vacation:** birthday fields, manual birthdays, vacations with reassignment proposals.
 5. ✅ **Stats & motivation:** stats endpoints, dashboard, effort fair share, streaks, badges, leaderboard, toggles.
-6. **iCal:** subscribe feed + import with preview.
+6. ✅ **iCal:** subscribe feed (per-member link, whole household or only mine) + `.ics` import with preview (built 2026-11-15).
 7. ✅ **Email reminders:** subscriptions (phase 5 extra) + `worker` container sending a daily digest at 08:00 local (built 2026-11-16). digests/overdue reminders via the existing mailer (scheduler in the backend).
 
 ## Verification (per phase)

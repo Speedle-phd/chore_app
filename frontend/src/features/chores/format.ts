@@ -29,6 +29,10 @@ export function whenText(instance: Pick<CalendarInstance, 'allDay' | 'start'>, t
 export const isMine = (instance: Pick<CalendarInstance, 'memberIds'>, myId: string | undefined) =>
    instance.memberIds.length === 0 || (myId !== undefined && instance.memberIds.includes(myId))
 
+/** For any of these people? None selected = everyone; chores for nobody in particular (anyone may) always count. */
+export const isForAny = (instance: Pick<CalendarInstance, 'memberIds'>, memberIds: readonly string[]) =>
+   memberIds.length === 0 || instance.memberIds.length === 0 || instance.memberIds.some((id) => memberIds.includes(id))
+
 /**
  * Wording for a vacation clash: "Ada is away" and the button for the suggestion.
  * If everyone suggested is already assigned, the away people are left out
