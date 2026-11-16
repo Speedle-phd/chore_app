@@ -1,0 +1,15 @@
+# Used when the host's nginx is in front (compose.nginx.yaml, see DEPLOY.md):
+# nginx terminates HTTPS and forwards to this container over plain HTTP.
+{
+	# nginx handles certificates; Caddy must not try to get any.
+	auto_https off
+	servers {
+		# Requests arrive from nginx via the Docker network (a private address):
+		# keep its X-Forwarded-For / X-Forwarded-Proto instead of replacing them.
+		trusted_proxies static private_ranges
+	}
+}
+
+:80 {
+	import site.caddy
+}

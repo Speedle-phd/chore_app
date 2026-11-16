@@ -4,7 +4,7 @@ Last updated: 2026-11-15 (shopping, recipes, meal plan). The user commits; never
 
 ## Where we are
 
-- **Done before the calendar:** UI refresh, **households** (roles, profiles without login, invitations, handle search), **accounts** (email + password, verification, reset, sessions, throttling), **passkeys**, **Account page**, **live updates** (Socket.IO, online dot), **production setup** (`compose.prod.yaml`, Caddy, DEPLOY.md).
+- **Done before the calendar:** UI refresh, **households** (roles, profiles without login, invitations, handle search), **accounts** (email + password, verification, reset, sessions, throttling), **passkeys**, **Account page**, **live updates** (Socket.IO, online dot), **production setup** (`compose.prod.yaml`, Caddy, DEPLOY.md; `compose.nginx.yaml` = optional mode behind the host's nginx, Caddy on 127.0.0.1:8080 over HTTP, `TRUST_PROXY=2`).
 - **Calendar + chores, committed** (last commit `4ae1042`):
   - phase 1–2: models, recurrence expansion and series edits (`backend/src/domain/`), calendar API, calendar page with create/edit dialog, repeat editor, drag/resize with "this / following / all", "Change this occurrence" form, delete with scope, live `'calendar'` topic;
   - phase 3: chore workflow (done/skipped/undo, "any one" vs "each of them", taking turns, "repeat after it's done", overdue, Chores page, nav overdue badge);

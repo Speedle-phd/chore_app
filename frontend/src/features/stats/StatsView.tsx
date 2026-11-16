@@ -119,7 +119,7 @@ function PeopleList({ stats, members }: { stats: Stats; members: Member[] }) {
                      <Person member={member} />
                   </span>
                   <span className='relative block h-3 rounded-full bg-muted' aria-hidden>
-                     <span className='absolute inset-y-0 left-0 rounded-full bg-(--chart-1)' style={{ width: `${(m.points / max) * 100}%` }} />
+                     <span className='absolute inset-y-0 left-0 rounded-full bg-chart-1' style={{ width: `${(m.points / max) * 100}%` }} />
                      {fairPoints !== null && (
                         <span
                            className='absolute -inset-y-1 w-0.5 rounded-full bg-foreground'

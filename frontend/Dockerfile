@@ -9,6 +9,6 @@ COPY . .
 RUN npm run build
 
 FROM caddy:2.10-alpine AS runtime
-COPY Caddyfile /etc/caddy/Caddyfile
+COPY Caddyfile Caddyfile.behind-proxy site.caddy /etc/caddy/
 COPY --from=build /app/dist /srv
 EXPOSE 80 443

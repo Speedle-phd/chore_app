@@ -57,6 +57,111 @@ The mailer refuses to start without SMTP settings, and refuses to send a
 password unencrypted (`SMTP_STARTTLS` must be `true` when `SMTP_USER` is set),
 so a misconfiguration shows up immediately instead of mails silently failing.
 
+## Behind an existing nginx
+
+If the server already runs nginx on ports 80/443 (e.g. for another website),
+Caddy can't take those ports. Then nginx stays in front and handles HTTPS, and
+Hearth's Caddy listens only on `127.0.0.1:8080` with plain HTTP:
+
+```
+internet ──443──► nginx (host, HTTPS) ──► 127.0.0.1:8080 web (Caddy, HTTP) ──► backend ──► …
+```
+
+`compose.nginx.yaml` switches the stack to this mode: Caddy uses
+`frontend/Caddyfile.behind-proxy` (no certificates, trusts nginx's
+`X-Forwarded-*` headers), only publishes `127.0.0.1:${HEARTH_LOCAL_PORT:-8080}`,
+and the backend trusts two proxy hops (`TRUST_PROXY=2`: nginx, then Caddy).
+It must be part of **every** compose command; easiest is one line in
+`.env.production`:
+
+```bash
+COMPOSE_FILE=compose.prod.yaml:compose.nginx.yaml
+```
+
+and then leave out `-f compose.prod.yaml` in all commands of this guide (an
+explicit `-f` replaces `COMPOSE_FILE`), e.g.:
+
+```bash
+docker compose --env-file .env.production up -d --build
+docker compose --env-file .env.production ps
+```
+
+**1. DNS:** point the Hearth domain (e.g. `hearth.example.com`) at the server.
+
+**2. nginx, HTTP first** (needed for the certificate check), e.g.
+`/etc/nginx/sites-available/hearth` (or `conf.d/hearth.conf`):
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+    server_name hearth.example.com;
+    location / { return 301 https://$host$request_uri; }
+}
+```
+
+`sudo nginx -t && sudo systemctl reload nginx`.
+
+**3. Certificate** with the tool that already serves your other site:
+
+```bash
+# acme.sh (uses nginx for the HTTP check, reloads nginx on renewal)
+acme.sh --issue -d hearth.example.com --nginx
+sudo mkdir -p /etc/nginx/ssl/hearth
+acme.sh --install-cert -d hearth.example.com \
+  --key-file       /etc/nginx/ssl/hearth/key.pem \
+  --fullchain-file /etc/nginx/ssl/hearth/fullchain.pem \
+  --reloadcmd      "systemctl reload nginx"
+
+# or certbot (writes the ssl lines into the server block itself)
+sudo certbot certonly --nginx -d hearth.example.com
+```
+
+Renewal is automatic (acme.sh's cron job / certbot's timer).
+
+**4. nginx, HTTPS** (add next to the block from step 2):
+
+```nginx
+# Once per nginx config (http level): WebSocket upgrades for live updates.
+map $http_upgrade $connection_upgrade { default upgrade; '' close; }
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;                      # nginx ≥ 1.25.1; older: "listen 443 ssl http2;"
+    server_name hearth.example.com;
+
+    ssl_certificate     /etc/nginx/ssl/hearth/fullchain.pem;  # certbot: /etc/letsencrypt/live/hearth.example.com/fullchain.pem
+    ssl_certificate_key /etc/nginx/ssl/hearth/key.pem;        # certbot: /etc/letsencrypt/live/hearth.example.com/privkey.pem
+
+    client_max_body_size 10m;      # recipe photos up to 8 MB, avatars, .ics files
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade           $http_upgrade;
+        proxy_set_header Connection        $connection_upgrade;
+        proxy_read_timeout 1h;         # keep live-update connections open
+        proxy_buffering off;
+    }
+}
+```
+
+`sudo nginx -t && sudo systemctl reload nginx`, then do the steps of "First
+deployment" (above) with the `COMPOSE_FILE` line added and without `-f` and open `https://hearth.example.com`. Caddy still adds the
+security headers (HSTS, CSP, …), so nginx needn't. If `map $http_upgrade` is
+already defined elsewhere in your nginx config, don't add it twice.
+
+Notes for this mode:
+- Only nginx may reach port 8080: it is bound to `127.0.0.1`, so don't change
+  that to `0.0.0.0` (visitors could then fake their IP for the rate limits).
+- Don't add another proxy (e.g. Cloudflare) in front without raising
+  `TRUST_PROXY` accordingly.
+- The `hearth_caddy_data` volume stays empty here; certificates live with nginx.
+
 ## Updates
 
 ```bash
@@ -89,7 +194,8 @@ Never run `down -v` on the production stack: `-v` deletes these volumes.
 - **Passkeys belong to the domain.** Passkeys created on one domain don't work
   on another (and those from `localhost` development don't carry over).
 - **Rate limits** see each visitor's real IP because the backend trusts exactly
-  one proxy hop (`TRUST_PROXY=1`, Caddy). Don't publish the backend port directly.
+  one proxy hop (`TRUST_PROXY=1`, Caddy; two behind nginx, see above). Don't
+  publish the backend port directly.
 - **One backend instance.** Live updates (Socket.IO) and the in-memory rate
   limiter assume a single backend container. Scaling out needs a shared adapter
   (e.g. Redis) first.
