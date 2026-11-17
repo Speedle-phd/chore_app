@@ -3,7 +3,7 @@
  * Events only say *what* changed; clients refetch through the normal API, so
  * the same authorization applies and no personal data travels over the socket.
  */
-export type HouseholdTopic = 'household' | 'members' | 'invitations' | 'calendar' | 'shopping' | 'recipes' | 'packing'
+export type HouseholdTopic = 'household' | 'members' | 'invitations' | 'calendar' | 'shopping' | 'recipes' | 'packing' | 'rewards' | 'pinboard'
 export type UserTopic = 'households' | 'invitations' | 'profile'
 
 export type ServerToClientEvents = {

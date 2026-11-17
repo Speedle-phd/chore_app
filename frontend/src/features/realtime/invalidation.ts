@@ -11,7 +11,10 @@ export function householdKeys(householdId: string, topics: HouseholdTopic[]): Qu
       if (topic === 'shopping') keys.push(['household', householdId, 'shopping'])
       if (topic === 'recipes') keys.push(['household', householdId, 'recipes'])
       if (topic === 'packing') keys.push(['household', householdId, 'packing'])
-      if (topic === 'household') keys.push(['households'], ['household', householdId, 'stats'])
+      if (topic === 'rewards') keys.push(['household', householdId, 'rewards'])
+      if (topic === 'pinboard') keys.push(['household', householdId, 'posts'])
+      // The motivation switches (incl. rewards) live on the household.
+      if (topic === 'household') keys.push(['households'], ['household', householdId, 'stats'], ['household', householdId, 'rewards'])
       // Prefix: every loaded range and every open entry of this household's calendar.
       if (topic === 'calendar') {
          keys.push(
@@ -22,6 +25,8 @@ export function householdKeys(householdId: string, topics: HouseholdTopic[]): Qu
             // What reminders will send depends on the entries.
             ['household', householdId, 'reminders'],
             ['household', householdId, 'stats'],
+            // Reward balances come from points earned with chores.
+            ['household', householdId, 'rewards'],
          )
       }
    }

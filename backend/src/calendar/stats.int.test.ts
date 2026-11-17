@@ -150,7 +150,7 @@ describe('statistics', () => {
       expect((await ada.as.patch(`${base}/motivation`, {})).status).toBe(400)
       const res = await ada.as.patch(`${base}/motivation`, { badges: false, streaks: false })
       expect(res.status).toBe(200)
-      expect(res.body.motivation).toEqual({ leaderboard: true, badges: false, streaks: false })
+      expect(res.body.motivation).toEqual({ leaderboard: true, badges: false, streaks: false, rewards: true })
       const stats = (await ben.as.get(`${base}/stats`, week)).body
       expect(stats.motivation).toEqual({ leaderboard: true, badges: false, streaks: false })
       expect(stats.members.every((m: MemberRow) => m.badges === null && m.streak === null)).toBe(true)

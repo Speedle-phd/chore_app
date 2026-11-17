@@ -164,10 +164,20 @@ Notes for this mode:
 
 ## Updates
 
+Back up the database first (see Backups), then:
+
 ```bash
 git pull
 docker compose -f compose.prod.yaml --env-file .env.production up -d --build
+# behind nginx (COMPOSE_FILE in .env.production): leave out -f, it would drop compose.nginx.yaml
+docker compose --env-file .env.production up -d --build
+docker compose --env-file .env.production ps        # all services "healthy" after ~30 s
+docker image prune -f                               # optional: remove the replaced images
 ```
+
+Only the rebuilt containers restart (a few seconds offline); the data volumes
+stay. New database indexes are created by the backend when it starts. Open
+browser tabs keep the old app until they are reloaded.
 
 ## Logs
 

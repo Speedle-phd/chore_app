@@ -7,6 +7,7 @@ import { useHousehold, useMembers } from '@/features/households/householdsApi'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { avatarSrc, initials } from '@/lib/member'
 import ReceivedInvitations from '@/features/invitations/ReceivedInvitations'
+import { Pinboard } from '@/features/pinboard/Pinboard'
 
 function greeting(hour: number) {
    if (hour < 12) return 'Good morning'
@@ -71,6 +72,8 @@ function App() {
                </Link>
             )}
          </motion.section>
+
+         <Pinboard household={household} members={members} />
 
          <section aria-labelledby='sections-heading'>
             <h2

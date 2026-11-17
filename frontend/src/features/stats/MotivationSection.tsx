@@ -8,9 +8,10 @@ const OPTIONS = [
    { key: 'leaderboard', label: 'Leaderboard', hint: 'Rank people by points in the chore stats.' },
    { key: 'streaks', label: 'Streaks', hint: 'Show how many days in a row someone did chores.' },
    { key: 'badges', label: 'Badges', hint: 'Award badges for milestones (first chore, 7-day streak, …).' },
+   { key: 'rewards', label: 'Rewards', hint: 'Let people spend their chore points on rewards you set (Chores → Rewards).' },
 ] as const
 
-/** Settings: switch the leaderboard, streaks and badges on or off for the household. */
+/** Settings: switch the leaderboard, streaks, badges and rewards on or off for the household. */
 export function MotivationSection({ household }: { household: Household }) {
    const save = useSetMotivation(household.id)
    const allowed = canManage(household.role)

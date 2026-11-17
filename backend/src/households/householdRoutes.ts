@@ -14,6 +14,10 @@ import { createRecipeRoutes } from '../recipes/recipeRoutes'
 import type { RecipeService } from '../recipes/recipeService'
 import { createPackingRoutes } from '../packing/packingRoutes'
 import type { PackingService } from '../packing/packingService'
+import { createRewardRoutes } from '../rewards/rewardRoutes'
+import { createPinboardRoutes } from '../pinboard/pinboardRoutes'
+import { createPinboardService } from '../pinboard/pinboardService'
+import { createRewardService } from '../rewards/rewardService'
 import { UnauthorizedError } from '../errors'
 import upload from '../middleware/avatarUpload'
 import type { MembershipType } from '../models/membershipModel'
@@ -88,12 +92,15 @@ export function createHouseholdRoutes(
    })
 
    one.use('/invitations', createHouseholdInvitationRoutes(invitations))
-   one.use(createCalendarRoutes(calendar, createStatsService(calendar)))
+   const stats = createStatsService(calendar)
+   one.use(createCalendarRoutes(calendar, stats))
    one.use('/reminders', createReminderRoutes(reminders))
    one.use('/ical', createHouseholdIcalRoutes(ical))
    one.use('/shopping', createShoppingRoutes(shopping))
    one.use('/recipes', createRecipeRoutes(recipes, importLimit))
    one.use('/packing', createPackingRoutes(packing))
+   one.use('/rewards', createRewardRoutes(createRewardService({ stats })))
+   one.use('/posts', createPinboardRoutes(createPinboardService()))
 
    one.get('/members', async (req, res) => {
       res.json(await households.listMembers(me(req)))

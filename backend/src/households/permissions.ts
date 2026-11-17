@@ -26,3 +26,13 @@ export const canDeleteShared = (role: Role, isCreator: boolean) => isCreator || 
  */
 export const canMarkChoreFor = (role: Role, isSelf: boolean, targetHasLogin: boolean) =>
    isSelf || !targetHasLogin || canManage(role)
+
+/**
+ * Spending someone's reward points: your own; a profile's (no login, e.g. a child)
+ * only by admins and owners, so a sibling can't spend a kid's pocket money.
+ */
+export const canRedeemFor = (role: Role, isSelf: boolean, targetHasLogin: boolean) =>
+   isSelf || (!targetHasLogin && canManage(role))
+
+/** Voting in a pinboard poll: as yourself; for profiles (no login) anyone may, like marking their chores. */
+export const canVoteFor = (isSelf: boolean, targetHasLogin: boolean) => isSelf || !targetHasLogin

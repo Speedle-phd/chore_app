@@ -11,7 +11,7 @@ export type Household = {
    role: Role
    memberCount: number
    /** Playful parts of the chore stats (owners/admins switch them). */
-   motivation: { leaderboard: boolean; badges: boolean; streaks: boolean }
+   motivation: { leaderboard: boolean; badges: boolean; streaks: boolean; rewards: boolean }
    /** Bundesland for public holidays; null = none shown. */
    region: { state: StateCode | null }
    createdAt: string
@@ -73,6 +73,7 @@ export function useSetMotivation(hid: string) {
       onSuccess: (household) => {
          queryClient.setQueryData<Household[]>(HOUSEHOLDS_KEY, (list) => list?.map((h) => (h.id === household.id ? household : h)))
          void queryClient.invalidateQueries({ queryKey: ['household', hid, 'stats'] })
+         void queryClient.invalidateQueries({ queryKey: ['household', hid, 'rewards'] })
       },
    })
 }

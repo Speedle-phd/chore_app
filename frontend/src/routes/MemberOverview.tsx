@@ -24,6 +24,7 @@ import { BadgeGrid, StatsCard, StatTile } from '@/features/stats/parts'
 import { PeriodPicker } from '@/features/stats/PeriodPicker'
 import { periodRange, type PeriodId } from '@/features/stats/periods'
 import { useMemberStats } from '@/features/stats/statsApi'
+import { MemberRewards } from '@/features/rewards/MemberRewards'
 import { avatarSrc, initials } from '@/lib/member'
 import { cn } from '@/lib/utils'
 
@@ -159,6 +160,8 @@ const MemberOverview = () => {
                   )}
                </div>
             )}
+
+            <MemberRewards household={household} member={member} />
 
             <StatsCard title='Chores due' subtitle='Overdue, today and the next 7 days'>
                {agenda.isPending ? (

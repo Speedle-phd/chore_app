@@ -22,16 +22,18 @@ import { nextHourSlot, viewerTimeZone } from '@/features/calendar/time'
 import { ChoreCard } from '@/features/chores/ChoreCard'
 import { ChoreLibrary } from '@/features/chores/ChoreLibrary'
 import { StatsView } from '@/features/stats/StatsView'
+import { useRewards } from '@/features/rewards/rewardsApi'
+import { RewardsView } from '@/features/rewards/RewardsView'
 import { YourWeek } from '@/features/stats/YourWeek'
 import { dateOf, dayLabel, isForAny } from '@/features/chores/format'
 import { useHousehold, useMembers } from '@/features/households/householdsApi'
 import { PeopleFilter } from '@/features/households/PeopleFilter'
-import { canDeleteCalendarItem } from '@/features/households/permissions'
+import { canDeleteCalendarItem, canManage } from '@/features/households/permissions'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { usePageMeta } from './usePageMeta'
 
 type ChoreInstance = CalendarInstance & { chore: ChoreInfo }
-const TABS = ['todo', 'all', 'stats'] as const
+const TABS = ['todo', 'all', 'stats', 'rewards'] as const
 const chores = (list: CalendarInstance[]) => list.filter((i): i is ChoreInstance => i.chore !== null)
 
 const Chores = () => {
@@ -52,6 +54,9 @@ const Chores = () => {
    const [params, setParams] = useSearchParams()
    const tab = TABS.find((t) => t === params.get('tab')) ?? 'todo'
    const [changing, setChanging] = useState<CalendarInstance | null>(null)
+   // Managers see how many reward requests wait for them on the tab.
+   const rewards = useRewards(household.id)
+   const waiting = canManage(household.role) && rewards.data?.enabled ? rewards.data.pending.length : 0
 
    const zone = viewerTimeZone()
    const memberList = useMemo(() => members.data ?? [], [members.data])
@@ -128,10 +133,19 @@ const Chores = () => {
                   <TabsTrigger value='todo'>To do</TabsTrigger>
                   <TabsTrigger value='all'>All chores</TabsTrigger>
                   <TabsTrigger value='stats'>Stats</TabsTrigger>
+                  <TabsTrigger value='rewards'>
+                     Rewards
+                     {waiting > 0 && (
+                        <span className='grid h-4.5 min-w-4.5 place-items-center rounded-full bg-primary px-1 text-[0.6875rem] leading-none font-semibold text-primary-foreground'>
+                           {waiting}
+                           <span className='sr-only'> waiting for approval</span>
+                        </span>
+                     )}
+                  </TabsTrigger>
                </TabsList>
             </div>
-            {/* Stats always cover everyone; the filter applies to To do and All chores. */}
-            {tab !== 'stats' && (
+            {/* Stats and rewards always cover everyone; the filter applies to To do and All chores. */}
+            {(tab === 'todo' || tab === 'all') && (
                <div className='mb-6 flex flex-wrap items-center gap-x-4 gap-y-2'>
                   <PeopleFilter members={memberList} value={people} onChange={setPeople} />
                   {filtered && (
@@ -249,6 +263,9 @@ const Chores = () => {
             </TabsContent>
             <TabsContent value='stats'>
                <StatsView householdId={household.id} members={memberList} />
+            </TabsContent>
+            <TabsContent value='rewards'>
+               <RewardsView household={household} members={memberList} />
             </TabsContent>
          </Tabs>
 

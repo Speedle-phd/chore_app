@@ -4,6 +4,7 @@ import { activitySeries, choreStats, creditedCompletions, fairShare, memberStats
 import { NotFoundError } from '../errors'
 import { Household } from '../models/householdModel'
 import { Membership, type MembershipType } from '../models/membershipModel'
+import { Occurrence } from '../models/occurrenceModel'
 import type { CalendarService } from './calendarService'
 import type { CalendarInstance } from './calendarViews'
 
@@ -99,6 +100,25 @@ export function createStatsService(calendar: CalendarService) {
    }
 
    return {
+      /**
+       * All points ever earned, per member (reward balances). Chores can be marked up to 7 days
+       * early, so history runs to 8 days ahead: every existing completion counts, whatever the zone.
+       */
+      async earned(me: MembershipType, memberIds: string[], now: Date): Promise<Map<string, number>> {
+         // Points only come from completions: start at the earliest completed occurrence (an imported
+         // or back-dated chore can be older than the household), a month earlier for ones moved earlier.
+         const first = await Occurrence.findOne({ householdId: me.householdId, 'completions.0': { $exists: true } })
+            .sort({ originalStart: 1 })
+            .select('originalStart')
+            .lean()
+         if (!first) return new Map(memberIds.map((id) => [id, 0]))
+         const tz = 'UTC'
+         const today = Temporal.Instant.fromEpochMilliseconds(now.getTime()).toZonedDateTimeISO(tz).toPlainDate()
+         const start = Temporal.PlainDate.from(first.originalStart.slice(0, 10)).subtract({ days: 31 })
+         const rows = await history(me, start, today.add({ days: 8 }), tz, now)
+         return new Map(memberStats(rows, memberIds).map((m) => [m.memberId, m.points]))
+      },
+
       async stats(me: MembershipType, query: StatsQuery, now: Date) {
          const { motivation, tz, today, rows, inPeriod, perMember, memberView, bucket, badgeCatalog } = await load(me, query, now)
          return {

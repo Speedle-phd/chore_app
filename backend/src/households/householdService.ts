@@ -9,6 +9,8 @@ import { Recipe } from '../models/recipeModel'
 import { deleteImage, RECIPE_IMAGES } from '../media/images'
 import { ItemMemory, ShoppingCategory, ShoppingItem, ShoppingList } from '../models/shoppingModels'
 import { PackingList, PackingTemplate } from '../models/packingModels'
+import { Redemption, Reward } from '../models/rewardModels'
+import { Post } from '../models/postModel'
 import { CalendarItem } from '../models/calendarItemModel'
 import { Invitation } from '../models/invitationModel'
 import { Membership, type MembershipType, type Role } from '../models/membershipModel'
@@ -103,8 +105,8 @@ export function createHouseholdService({ avatarDir, recipeDir }: { avatarDir: st
          return view(me.householdId, me.role)
       },
 
-      /** Switch the leaderboard, badges or streaks on or off (owners and admins). */
-      async setMotivation(me: MembershipType, input: { leaderboard?: boolean | undefined; badges?: boolean | undefined; streaks?: boolean | undefined }) {
+      /** Switch the leaderboard, badges, streaks or rewards on or off (owners and admins). */
+      async setMotivation(me: MembershipType, input: { leaderboard?: boolean | undefined; badges?: boolean | undefined; streaks?: boolean | undefined; rewards?: boolean | undefined }) {
          if (!canManage(me.role)) throw new ForbiddenError('Only owners and admins can change this.')
          const set = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined).map(([k, v]) => [`motivation.${k}`, v]))
          await Household.updateOne({ _id: me.householdId }, { $set: set })
@@ -143,6 +145,9 @@ export function createHouseholdService({ avatarDir, recipeDir }: { avatarDir: st
          await Recipe.deleteMany({ householdId: me.householdId })
          await PackingList.deleteMany({ householdId: me.householdId })
          await PackingTemplate.deleteMany({ householdId: me.householdId })
+         await Redemption.deleteMany({ householdId: me.householdId })
+         await Reward.deleteMany({ householdId: me.householdId })
+         await Post.deleteMany({ householdId: me.householdId })
          for (const Model of [ShoppingItem, ShoppingList, ShoppingCategory, ItemMemory] as const) {
             await (Model as typeof ShoppingItem).deleteMany({ householdId: me.householdId })
          }

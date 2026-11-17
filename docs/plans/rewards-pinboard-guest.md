@@ -1,6 +1,6 @@
 # Plan: Chore templates, rewards, pinboard and polls, guest page
 
-Status: **phase 1 done 2026-11-16** (uncommitted); phases 2–4 not started, **phase 2 (rewards) next**. Features 10, 7, 12 and 13 from [household-extras.md](household-extras.md). Conventions: [../HANDOFF.md](../HANDOFF.md). The installable app ([holidays-packing-pwa.md](holidays-packing-pwa.md) phase 3) is postponed until after this (user decision 2026-11-16).
+Status: **phases 1–3 done** (2026-11-16/17, uncommitted); **phase 4 (guest page) next**, not started. Features 10, 7, 12 and 13 from [household-extras.md](household-extras.md). Conventions: [../HANDOFF.md](../HANDOFF.md). The installable app ([holidays-packing-pwa.md](holidays-packing-pwa.md) phase 3) is postponed until after this (user decision 2026-11-16).
 
 ## User decisions (2026-11-16)
 
@@ -36,7 +36,9 @@ Status: **phase 1 done 2026-11-16** (uncommitted); phases 2–4 not started, **p
 
 **Verify:** unit tests; browser: pick → fields filled → save → appears in Chores and calendar; phone width; axe on the picker.
 
-## Phase 2 — Rewards for points (M)
+## Phase 2 — Rewards for points (M) ✅ done 2026-11-17
+
+**As built:** as planned, plus: managers spend for profiles through a "Points of" picker on the balance card; members see only their own balance and requests, managers everyone's (app choice); a reward someone asked for can't be deleted, only archived (409); history = latest 30 decided requests; earned points start at the earliest completed occurrence (a month earlier for moved ones) and run to today + 8 days in UTC (completions up to 7 days early), so the balance doesn't depend on a time zone; household deletion removes rewards and requests. Not built: celebratory animation (a toast "Enjoy: …!" instead).
 
 **Model:**
 - `Reward { householdId, title (≤ 80), description?, cost (1–10 000 points), needsApproval: boolean, archivedAt|null, createdBy }`.
@@ -53,7 +55,9 @@ Status: **phase 1 done 2026-11-16** (uncommitted); phases 2–4 not started, **p
 
 **Verify:** unit + integration tests; browser with two users (redeem → manager approves live), a kid profile redeemed by a manager, insufficient points, phone + dark, axe.
 
-## Phase 3 — Pinboard and polls (M)
+## Phase 3 — Pinboard and polls (M) ✅ done 2026-11-17
+
+**As built:** as planned. Details: polls also get "Voting ends" presets (when someone closes it / a day / 3 days / a week); a poll's question can be edited only until the first vote, notes any time by the author (marked "edited"; `editedAt` is its own field because votes touch `updatedAt`); votes are one native-driver pipeline update (Mongoose 9 only allows pipeline updates on request) that replaces the person's vote and only matches open polls; the board shows "Voting as" (you or a profile) only when an open poll exists and the household has profiles; the logo dot is per device (`features/pinboard/seen.ts`, `useSyncExternalStore` over localStorage) and the logo's name becomes "Hearth, home, new on the pinboard"; household deletion removes posts. Not built: reactions, a poll linked to the meal plan (still in "Later").
 
 **Model:** `Post { householdId, authorId (membership), kind: 'note' | 'poll', text (≤ 1000), pinned: boolean, expiresAt: Date|null, poll?: { options: [{ _id, text (≤ 100) }] (2–10), multiple: boolean, closesAt: Date|null, votes: [{ memberId, optionIds, at }] } }`. TTL index on `expiresAt` deletes expired posts; queries also filter them (TTL runs once a minute).
 

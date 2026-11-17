@@ -13,6 +13,8 @@ const householdSchema = new Schema(
                leaderboard: { type: Boolean, default: true },
                badges: { type: Boolean, default: true },
                streaks: { type: Boolean, default: true },
+               /** Spending chore points on rewards (Chores → Rewards). */
+               rewards: { type: Boolean, default: true },
             },
             { _id: false },
          ),

@@ -37,7 +37,7 @@ export const holidayRangeSchema = z
    .refine((q) => Date.parse(q.to) - Date.parse(q.from) <= 400 * DAY_MS, { message: 'Ask for at most 400 days.', path: ['to'] })
 
 export const motivationSchema = z
-   .object({ leaderboard: z.boolean(), badges: z.boolean(), streaks: z.boolean() })
+   .object({ leaderboard: z.boolean(), badges: z.boolean(), streaks: z.boolean(), rewards: z.boolean() })
    .partial()
    .strict()
    .refine((m) => Object.keys(m).length > 0, 'Nothing to change.')
