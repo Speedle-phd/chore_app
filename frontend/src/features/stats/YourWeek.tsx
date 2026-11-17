@@ -1,9 +1,10 @@
-import { ChevronRight, Flame, RefreshCw, Trophy } from 'lucide-react'
+import { ChevronRight, Flame, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Temporal } from 'temporal-polyfill'
 import { Button } from '@/components/ui/button'
 import type { Member } from '@/features/households/householdsApi'
-import { BADGE_ICONS, nextBadge, ordinal } from './format'
+import { BadgeAnimal } from './BadgeAnimal'
+import { nextBadge, ordinal } from './format'
 import { periodRange } from './periods'
 import { useStats } from './statsApi'
 
@@ -31,7 +32,6 @@ export function YourWeek({ householdId, me }: { householdId: string; me: Member 
    const rank = mine.points > 0 ? ranking.findIndex((m) => m.memberId === me.id) + 1 : 0
    const next = mine.progress ? nextBadge(mine.progress) : null
    const nextDef = next && data.badgeCatalog.find((d) => d.id === next.id)
-   const NextIcon = BADGE_ICONS[nextDef?.icon ?? ''] ?? Trophy
 
    return (
       <section aria-label='Your week' className='rounded-2xl border bg-card p-4'>
@@ -56,7 +56,7 @@ export function YourWeek({ householdId, me }: { householdId: string; me: Member 
                <div className='min-w-48 flex-1'>
                   <p className='text-xs text-muted-foreground'>Next badge</p>
                   <p className='flex items-center gap-2 text-sm font-medium'>
-                     <NextIcon className='size-4 text-primary' aria-hidden />
+                     <BadgeAnimal animal={nextDef.animal} accessory={nextDef.accessory} earned={false} className='size-7' />
                      {nextDef.name}
                      <span className='font-normal text-muted-foreground tabular-nums'>
                         {next.value} / {next.goal}

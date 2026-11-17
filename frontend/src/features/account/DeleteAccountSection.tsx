@@ -117,7 +117,7 @@ const DeleteAccountSection = () => {
                   <Button
                      type='submit'
                      form='delete-account'
-                     className='bg-destructive text-white hover:bg-destructive/90'
+                     className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
                      disabled={!password || remove.isPending}
                   >
                      {remove.isPending ? 'Deleting…' : 'Delete account forever'}

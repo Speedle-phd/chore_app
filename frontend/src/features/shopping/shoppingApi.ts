@@ -120,6 +120,7 @@ export function useUpdateItem(hid: string, listId: string) {
    const refresh = useRefresh(hid)
    const key = itemsKey(hid, listId)
    return useMutation({
+      mutationKey: itemChangeKey(hid, listId),
       mutationFn: async ({ id, change }: { id: string; change: ItemUpdate }) =>
          (await api.patch<ShoppingItem>(`${base(hid)}/lists/${listId}/items/${id}`, change)).data,
       onMutate: async ({ id, change }) => {
@@ -128,8 +129,20 @@ export function useUpdateItem(hid: string, listId: string) {
          queryClient.setQueryData<ShoppingItem[]>(key, (items) => items?.map((i) => (i.id === id ? { ...i, ...change } : i)))
          return { previous }
       },
-      onError: (_e, _v, context) => queryClient.setQueryData(key, context?.previous),
-      onSettled: refresh,
+      onSuccess: (item, { change }) => {
+         // The server's answer goes straight into the list (refetching everything after each tick
+         // queued up reloads and made clearing the basket wait seconds). A newer tick of the same
+         // item still on its way wins, so a quick tick-untick doesn't flicker.
+         const newer = queryClient.isMutating({ mutationKey: itemChangeKey(hid, listId), predicate: (m) => (m.state.variables as { id?: string } | undefined)?.id === item.id }) > 1
+         if (!newer) queryClient.setQueryData<ShoppingItem[]>(key, (items) => items?.map((i) => (i.id === item.id ? item : i)))
+         // Ticking only changes the open counts; edits can also teach suggestions and categories.
+         if (Object.keys(change).every((k) => k === 'checked')) void queryClient.invalidateQueries({ queryKey: listsKey(hid) })
+         else refresh()
+      },
+      onError: (_e, _v, context) => {
+         queryClient.setQueryData(key, context?.previous)
+         refresh()
+      },
    })
 }
 
@@ -152,11 +165,22 @@ export function useDeleteItem(hid: string, listId: string) {
    })
 }
 
+/** Ticking items in flight (so clearing the basket can wait for them). */
+const itemChangeKey = (hid: string, listId: string) => ['shopping-item-change', hid, listId] as const
+
 export function useClearBasket(hid: string, listId: string) {
-   const refresh = useRefresh(hid)
+   const queryClient = useQueryClient()
    return useMutation({
-      mutationFn: async () => (await api.post<ShoppingItem[]>(`${base(hid)}/lists/${listId}/items/clear-checked`)).data,
-      onSuccess: refresh,
+      mutationFn: async () => {
+         // A tick sent a moment ago must reach the server first, or its item would stay behind unticked.
+         while (queryClient.isMutating({ mutationKey: itemChangeKey(hid, listId) }) > 0) await new Promise((r) => setTimeout(r, 50))
+         return (await api.post<ShoppingItem[]>(`${base(hid)}/lists/${listId}/items/clear-checked`)).data
+      },
+      onSuccess: (removed) => {
+         const gone = new Set(removed.map((i) => i.id))
+         queryClient.setQueryData<ShoppingItem[]>(itemsKey(hid, listId), (items) => items?.filter((i) => !gone.has(i.id)))
+         void queryClient.invalidateQueries({ queryKey: listsKey(hid) })
+      },
    })
 }
 

@@ -12,6 +12,7 @@ export const householdView = (household: HouseholdType, role: Role, memberCount:
       badges: household.motivation?.badges ?? true,
       streaks: household.motivation?.streaks ?? true,
    },
+   region: { state: household.region?.state ?? null },
    createdAt: household.createdAt.toISOString(),
 })
 

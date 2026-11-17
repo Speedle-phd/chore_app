@@ -1,6 +1,6 @@
 # Plan: Household extras (candidate features)
 
-Status: **proposed 2026-11-16, nothing decided, nothing built.** The user picks which features to build and answers the open questions below; until then this is a menu, not a commitment. Conventions: [../HANDOFF.md](../HANDOFF.md).
+Status: **proposed 2026-11-16.** Chosen so far: 1, 3, 11 → [holidays-packing-pwa.md](holidays-packing-pwa.md); 7, 10, 12, 13 (2026-11-16) → [rewards-pinboard-guest.md](rewards-pinboard-guest.md). User decisions are in those plans. The rest is backlog until the user picks more.
 
 ## How to use this plan
 
@@ -14,19 +14,19 @@ Effort: **S** about one session, **M** two to three sessions, **L** more than th
 
 | # | Feature | Effort | Build? | Open questions |
 |---|---|---|---|---|
-| 1 | Public + school holidays | S–M | ☐ | Q1.1–Q1.4 |
+| 1 | Public + school holidays | S–M | ☑ (public only) | Q1.1–Q1.4 |
 | 2 | Waste collection calendar | S | ☐ | Q2.1–Q2.2 |
-| 3 | Packing lists | S–M | ☐ | Q3.1 |
+| 3 | Packing lists | S–M | ☑ | Q3.1 |
 | 4 | Pantry with best-before dates | M | ☐ | Q4.1–Q4.3 |
 | 5 | "What can I cook?" | S (needs 4) | ☐ | — |
 | 6 | Household money (Haushaltskasse) | M–L | ☐ | Q6.1–Q6.3 |
-| 7 | Rewards for points | M | ☐ | Q7.1–Q7.2 |
+| 7 | Rewards for points | M | ☑ (approval per reward, points never expire) | Q7.1–Q7.2 |
 | 8 | Meter readings | S–M | ☐ | Q8.1 |
 | 9 | Contracts and deadlines | M | ☐ | Q9.1 |
-| 10 | Maintenance / plant / pet templates | S | ☐ | — |
-| 11 | Installable app (PWA), offline, push | M–L | ☐ | Q11.1–Q11.2 |
-| 12 | Pinboard and polls | M | ☐ | — |
-| 13 | Guest / babysitter info page | S–M | ☐ | Q13.1 |
+| 10 | Maintenance / plant / pet templates | S | ☑ | — |
+| 11 | Installable app (PWA), offline, push | M–L | ☑ | Q11.1–Q11.2 |
+| 12 | Pinboard and polls | M | ☑ (named votes) | — |
+| 13 | Guest / babysitter info page | S–M | ☑ (no health data) | Q13.1 |
 
 My suggested order if all are wanted (my suggestion, not a user decision): 1 + 2 (calendar data, high value for German households) → 11 (offline shopping list) → 4 + 5 (ties shopping, recipes and meals together) → the rest by interest.
 

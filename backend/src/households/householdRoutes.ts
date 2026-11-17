@@ -12,10 +12,12 @@ import { createShoppingRoutes } from '../shopping/shoppingRoutes'
 import type { ShoppingService } from '../shopping/shoppingService'
 import { createRecipeRoutes } from '../recipes/recipeRoutes'
 import type { RecipeService } from '../recipes/recipeService'
+import { createPackingRoutes } from '../packing/packingRoutes'
+import type { PackingService } from '../packing/packingService'
 import { UnauthorizedError } from '../errors'
 import upload from '../middleware/avatarUpload'
 import type { MembershipType } from '../models/membershipModel'
-import { householdNameSchema, motivationSchema, profileSchema, roleSchema } from './householdSchemas'
+import { holidayRangeSchema, householdNameSchema, motivationSchema, profileSchema, regionSchema, roleSchema } from './householdSchemas'
 import type { HouseholdService } from './householdService'
 import { requireMembership } from './requireMembership'
 
@@ -38,6 +40,7 @@ export function createHouseholdRoutes(
    ical: IcalService,
    shopping: ShoppingService,
    recipes: RecipeService,
+   packing: PackingService,
    importLimit: RequestHandler,
 ) {
    const router = Router()
@@ -64,6 +67,13 @@ export function createHouseholdRoutes(
    one.patch('/motivation', async (req, res) => {
       res.json(await households.setMotivation(me(req), motivationSchema.parse(req.body)))
    })
+   one.patch('/region', async (req, res) => {
+      res.json(await households.setRegion(me(req), regionSchema.parse(req.body).state))
+   })
+   one.get('/holidays', async (req, res) => {
+      const { from, to } = holidayRangeSchema.parse(req.query)
+      res.json(await households.holidays(me(req), from, to))
+   })
    one.delete('/', async (req, res) => {
       await households.remove(me(req))
       res.status(204).end()
@@ -83,6 +93,7 @@ export function createHouseholdRoutes(
    one.use('/ical', createHouseholdIcalRoutes(ical))
    one.use('/shopping', createShoppingRoutes(shopping))
    one.use('/recipes', createRecipeRoutes(recipes, importLimit))
+   one.use('/packing', createPackingRoutes(packing))
 
    one.get('/members', async (req, res) => {
       res.json(await households.listMembers(me(req)))

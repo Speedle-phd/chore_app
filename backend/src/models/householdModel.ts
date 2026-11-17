@@ -1,5 +1,6 @@
 import { Schema, model, Types } from 'mongoose'
 import type { HydratedDocument, InferSchemaType } from 'mongoose'
+import { STATE_CODES } from '../domain/holidayCatalog.de'
 
 const householdSchema = new Schema(
    {
@@ -17,8 +18,17 @@ const householdSchema = new Schema(
          ),
          default: () => ({}),
       },
+      /** Where the household lives, for public holidays in the calendar. No state = no holidays shown. */
+      region: {
+         type: new Schema({ state: { type: String, enum: [...STATE_CODES, null], default: null } }, { _id: false }),
+         default: () => ({}),
+      },
       /** When the default shopping categories and first list were created (claimed atomically, once). */
       shoppingSeededAt: { type: Date, default: null },
+      /** When the starter packing templates were created (claimed atomically, once). */
+      packingSeededAt: { type: Date, default: null },
+      /** Keys of the starter packing templates this household has received (each once; see domain/packingStarters.ts). */
+      packingStarters: { type: [String], default: [] },
    },
    { timestamps: true },
 )

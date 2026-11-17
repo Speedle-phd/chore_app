@@ -1,6 +1,7 @@
 import { isValidObjectId } from 'mongoose'
 import { z } from 'zod'
 import { normalizeBirthday } from '../domain/birthdays'
+import { STATE_CODES } from '../domain/holidayCatalog.de'
 import { ROLES } from '../models/membershipModel'
 
 const name = z.string().trim().min(1, 'Enter a name.').max(60)
@@ -25,6 +26,16 @@ export const birthdaySchema = z
 export const profileSchema = z.object({ fname: personName, lname: personName, birthday: birthdaySchema.optional() })
 export const roleSchema = z.object({ role: z.enum(ROLES) })
 export const objectId = z.string().refine(isValidObjectId, 'Invalid id')
+/** The household's Bundesland for public holidays; null switches them off. */
+export const regionSchema = z.object({ state: z.enum(STATE_CODES).nullable() }).strict()
+
+const DAY_MS = 24 * 60 * 60 * 1000
+/** Holidays on local dates [from, to): at most 400 days (the year view needs a little over a year). */
+export const holidayRangeSchema = z
+   .object({ from: z.iso.date(), to: z.iso.date() })
+   .refine((q) => q.from < q.to, { message: '`from` must be before `to`.', path: ['to'] })
+   .refine((q) => Date.parse(q.to) - Date.parse(q.from) <= 400 * DAY_MS, { message: 'Ask for at most 400 days.', path: ['to'] })
+
 export const motivationSchema = z
    .object({ leaderboard: z.boolean(), badges: z.boolean(), streaks: z.boolean() })
    .partial()

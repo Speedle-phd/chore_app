@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { ChevronRight, RefreshCw, ShoppingBasket, Tags, Trash2, WifiOff } from 'lucide-react'
+import { Check, RefreshCw, ShoppingBasket, Tags, Trash2, WifiOff } from 'lucide-react'
+import { AnimatePresence, LayoutGroup } from 'motion/react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { apiError } from '@/api/client'
@@ -12,7 +13,7 @@ import { AddItemBar } from '@/features/shopping/AddItemBar'
 import { CategoriesDialog } from '@/features/shopping/CategoriesDialog'
 import { categoryIcon } from '@/features/shopping/categoryIcons'
 import { ItemDialog } from '@/features/shopping/ItemDialog'
-import { ItemCard } from '@/features/shopping/ItemCard'
+import { BasketChip, ItemCard } from '@/features/shopping/ItemCard'
 import { ListSwitcher } from '@/features/shopping/ListSwitcher'
 import {
    useAddItems,
@@ -106,8 +107,8 @@ const ShoppingList = () => {
    )
 }
 
-/** Cards fill the row: as many columns as fit, at least ~8 rem each. */
-const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-2'
+/** Cards fill the row: as many columns as fit, at least 10.5 rem each (two on a phone; long German words fit). */
+const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,10.5rem),1fr))] gap-2'
 
 function ListBody({
    householdId,
@@ -153,56 +154,92 @@ function ListBody({
          onError: (e) => toast.error(apiError(e).message),
       })
 
-   return (
-      <div className='space-y-6'>
-         {sections.length > 0 && <p className='text-sm'>Tap an item when it’s in your basket; tap it again to put it back.</p>}
-         {sections.length === 0 ? (
-            <EmptyState
-               Icon={ShoppingBasket}
-               title={basket.length ? 'All done' : 'Nothing on this list yet'}
-               description={basket.length ? 'Everything is in the basket.' : 'Add what you need above; everyone at home sees it right away.'}
-            />
-         ) : (
-            sections.map(({ category, items: sectionItems }) => {
-               const Icon = categoryIcon(category?.icon)
-               const title = category?.name ?? 'Other things'
-               return (
-                  <section key={category?.id ?? 'none'} aria-label={title}>
-                     <h2 className='mb-2 flex items-center gap-2 text-sm font-semibold'>
-                        <Icon className='size-4 text-muted-foreground' aria-hidden />
-                        {title}
-                        <span className='font-normal text-muted-foreground'>({sectionItems.length})</span>
-                     </h2>
-                     <ul className={GRID}>
-                        {sectionItems.map((item) => (
-                           <ItemCard key={item.id} householdId={householdId} item={item} onEdit={onEdit} />
-                        ))}
-                     </ul>
-                  </section>
-               )
-            })
-         )}
+   const total = items.data.length
+   const done = basket.length
+   const percent = total ? Math.round((done / total) * 100) : 0
 
-         {basket.length > 0 && (
-            <details className='group rounded-2xl border p-3'>
-               <summary className='flex cursor-pointer list-none items-center gap-2 px-2 text-sm font-semibold [&::-webkit-details-marker]:hidden'>
-                  <ChevronRight className='size-4 transition-transform group-open:rotate-90' aria-hidden />
-                  In the basket ({basket.length})
-               </summary>
-               <ul className={`mt-3 ${GRID}`}>
-                  {basket.map((item) => (
-                     <ItemCard key={item.id} householdId={householdId} item={item} onEdit={onEdit} />
-                  ))}
-               </ul>
-               <div className='mt-2 flex justify-end'>
-                  <Button variant='outline' size='sm' onClick={clearBasket} disabled={clear.isPending}>
-                     <Trash2 />
-                     Clear basket
-                  </Button>
+   if (total === 0) {
+      return <EmptyState Icon={ShoppingBasket} title='Nothing on this list yet' description='Add what you need above; everyone at home sees it right away.' />
+   }
+
+   return (
+      <LayoutGroup>
+         <div className='space-y-6'>
+            {/* Stays in view while scrolling through the shop. */}
+            <div className='sticky top-16 z-10 rounded-2xl border bg-card/90 px-4 py-3 shadow-sm backdrop-blur supports-backdrop-filter:bg-card/75'>
+               <div className='flex flex-wrap items-center gap-x-4 gap-y-2'>
+                  <p className='flex items-center gap-2 text-sm font-medium' role='status'>
+                     <ShoppingBasket className='size-4 text-primary' aria-hidden />
+                     {done === total ? (
+                        <span>Everything’s in the basket</span>
+                     ) : (
+                        <span>
+                           <span className='tabular-nums'>{done}</span> of <span className='tabular-nums'>{total}</span> in the basket
+                           <span className='font-normal text-muted-foreground'> · {total - done} to get</span>
+                        </span>
+                     )}
+                  </p>
+                  <div className='order-last h-2 basis-full overflow-hidden rounded-full bg-muted sm:order-none sm:flex-1 sm:basis-auto' aria-hidden>
+                     <div className='h-full rounded-full bg-primary transition-[width] duration-500 ease-out' style={{ width: `${percent}%` }} />
+                  </div>
+                  {done > 0 && (
+                     <Button variant={done === total ? 'default' : 'outline'} size='sm' onClick={clearBasket} disabled={clear.isPending} className='ms-auto sm:ms-0'>
+                        <Trash2 />
+                        Clear basket
+                     </Button>
+                  )}
                </div>
-            </details>
-         )}
-      </div>
+            </div>
+
+            {sections.length === 0 ? (
+               <div className='flex flex-col items-center gap-2 rounded-2xl border border-dashed px-6 py-10 text-center'>
+                  <span className='grid size-12 place-items-center rounded-full bg-primary text-primary-foreground'>
+                     <Check className='size-6' strokeWidth={3} aria-hidden />
+                  </span>
+                  <h2 className='font-semibold'>All done</h2>
+                  <p className='max-w-sm text-sm text-muted-foreground'>Everything is in the basket. Clear the basket when you’re home, or tap a thing below to put it back.</p>
+               </div>
+            ) : (
+               sections.map(({ category, items: sectionItems }) => {
+                  const Icon = categoryIcon(category?.icon)
+                  const title = category?.name ?? 'Other things'
+                  return (
+                     <section key={category?.id ?? 'none'} aria-label={title}>
+                        <h2 className='mb-2 flex items-center gap-2 text-sm font-semibold'>
+                           <Icon className='size-4 text-muted-foreground' aria-hidden />
+                           {title}
+                           <span className='font-normal text-muted-foreground'>({sectionItems.length})</span>
+                        </h2>
+                        <ul className={GRID}>
+                           <AnimatePresence initial={false}>
+                              {sectionItems.map((item) => (
+                                 <ItemCard key={item.id} householdId={householdId} item={item} onEdit={onEdit} />
+                              ))}
+                           </AnimatePresence>
+                        </ul>
+                     </section>
+                  )
+               })
+            )}
+
+            {basket.length > 0 && (
+               <section aria-label='In the basket' className='rounded-2xl bg-muted/50 p-3'>
+                  <h2 className='mb-2 flex items-center gap-2 px-1 text-sm font-semibold'>
+                     <ShoppingBasket className='size-4 text-muted-foreground' aria-hidden />
+                     In the basket
+                     <span className='font-normal text-muted-foreground'>({basket.length}) · tap to put back</span>
+                  </h2>
+                  <ul className='flex flex-wrap gap-1.5'>
+                     <AnimatePresence initial={false}>
+                        {basket.map((item) => (
+                           <BasketChip key={item.id} householdId={householdId} item={item} />
+                        ))}
+                     </AnimatePresence>
+                  </ul>
+               </section>
+            )}
+         </div>
+      </LayoutGroup>
    )
 }
 

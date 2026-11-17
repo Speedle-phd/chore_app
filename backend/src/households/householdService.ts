@@ -1,4 +1,6 @@
 import { isValidObjectId, type Types } from 'mongoose'
+import type { StateCode } from '../domain/holidayCatalog.de'
+import { holidaysBetween } from '../domain/holidays'
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors'
 import { deleteAvatar, saveAvatar } from '../media/avatars'
 import { Household } from '../models/householdModel'
@@ -6,6 +8,7 @@ import { IcalFeed } from '../models/icalFeedModel'
 import { Recipe } from '../models/recipeModel'
 import { deleteImage, RECIPE_IMAGES } from '../media/images'
 import { ItemMemory, ShoppingCategory, ShoppingItem, ShoppingList } from '../models/shoppingModels'
+import { PackingList, PackingTemplate } from '../models/packingModels'
 import { CalendarItem } from '../models/calendarItemModel'
 import { Invitation } from '../models/invitationModel'
 import { Membership, type MembershipType, type Role } from '../models/membershipModel'
@@ -110,6 +113,22 @@ export function createHouseholdService({ avatarDir, recipeDir }: { avatarDir: st
          return view(me.householdId, me.role)
       },
 
+      /** Set the Bundesland for public holidays, or none (owners and admins). */
+      async setRegion(me: MembershipType, state: StateCode | null) {
+         if (!canManage(me.role)) throw new ForbiddenError('Only owners and admins can change this.')
+         await Household.updateOne({ _id: me.householdId }, { $set: { 'region.state': state } })
+         realtime.householdChanged(me.householdId, 'household')
+         realtime.userChanged(await accountIds(me.householdId), 'households')
+         return view(me.householdId, me.role)
+      },
+
+      /** Public holidays of the household's state on local dates [from, to); none without a state. */
+      async holidays(me: MembershipType, from: string, to: string) {
+         const household = await Household.findById(me.householdId).select('region').lean()
+         const state = household?.region?.state ?? null
+         return { state, holidays: state ? holidaysBetween(state, from, to) : [] }
+      },
+
       async remove(me: MembershipType) {
          if (!canDeleteHousehold(me.role)) throw new ForbiddenError('Only owners can delete the household.')
          const members = await Membership.find({ householdId: me.householdId })
@@ -122,6 +141,8 @@ export function createHouseholdService({ avatarDir, recipeDir }: { avatarDir: st
          const recipes = await Recipe.find({ householdId: me.householdId }).select('imageUrl').lean()
          for (const r of recipes) await deleteImage(r.imageUrl, recipeDir, RECIPE_IMAGES)
          await Recipe.deleteMany({ householdId: me.householdId })
+         await PackingList.deleteMany({ householdId: me.householdId })
+         await PackingTemplate.deleteMany({ householdId: me.householdId })
          for (const Model of [ShoppingItem, ShoppingList, ShoppingCategory, ItemMemory] as const) {
             await (Model as typeof ShoppingItem).deleteMany({ householdId: me.householdId })
          }

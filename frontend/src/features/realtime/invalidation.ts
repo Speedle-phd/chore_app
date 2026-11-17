@@ -10,6 +10,7 @@ export function householdKeys(householdId: string, topics: HouseholdTopic[]): Qu
       // Lists, items, categories and suggestions.
       if (topic === 'shopping') keys.push(['household', householdId, 'shopping'])
       if (topic === 'recipes') keys.push(['household', householdId, 'recipes'])
+      if (topic === 'packing') keys.push(['household', householdId, 'packing'])
       if (topic === 'household') keys.push(['households'], ['household', householdId, 'stats'])
       // Prefix: every loaded range and every open entry of this household's calendar.
       if (topic === 'calendar') {

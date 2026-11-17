@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ChoreActions } from '@/features/chores/ChoreActions'
 import { ConflictNotice } from '@/features/chores/ConflictNotice'
 import { RemindMe } from '@/features/reminders/RemindMe'
+import { VacationPacking } from '@/features/packing/VacationPacking'
 import { EffortDots } from '@/features/chores/ChoreCard'
 import type { Member, Role } from '@/features/households/householdsApi'
 import { avatarSrc, initials } from '@/lib/member'
@@ -212,6 +213,10 @@ export function OccurrenceDialog({ householdId, instance, members, role, canDele
                   about={instance.title}
                   size='sm'
                />
+            )}
+
+            {instance.kind === 'vacation' && instance.source === 'entry' && (
+               <VacationPacking householdId={householdId} vacation={instance} members={members} />
             )}
 
             {instance.source === 'member' && (

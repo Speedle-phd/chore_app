@@ -41,6 +41,7 @@ import { canDeleteCalendarItem, canMarkChoreFor } from '../households/permission
 import { CalendarItem, type CalendarItemType } from '../models/calendarItemModel'
 import { Membership, type MembershipType } from '../models/membershipModel'
 import { Occurrence } from '../models/occurrenceModel'
+import { PackingList } from '../models/packingModels'
 import { Recipe } from '../models/recipeModel'
 import { Reminder } from '../models/reminderModel'
 import { User } from '../models/userModel'
@@ -198,6 +199,13 @@ async function memberBirthdays(
 
 export function createCalendarService() {
    const changed = (me: MembershipType) => realtime.householdChanged(me.householdId, 'calendar')
+
+   /** A deleted vacation's packing lists stay, without the link. */
+   async function unlinkPacking(me: MembershipType, item: CalendarItemType) {
+      if (item.kind !== 'vacation') return
+      const result = await PackingList.updateMany({ householdId: me.householdId, vacationId: item._id }, { $set: { vacationId: null } })
+      if (result.modifiedCount) realtime.householdChanged(me.householdId, 'packing')
+   }
 
    async function list(me: MembershipType, query: CalendarQuery, now: Date): Promise<CalendarInstance[]> {
       const from = new Date(query.from)
@@ -513,6 +521,7 @@ export function createCalendarService() {
          await Occurrence.deleteMany({ itemId: item._id })
          await Reminder.deleteMany({ 'target.itemId': item._id })
          await item.deleteOne()
+         await unlinkPacking(me, item)
          changed(me)
       },
 
@@ -676,6 +685,7 @@ export function createCalendarService() {
             await Occurrence.deleteMany({ itemId: item._id })
             await Reminder.deleteMany({ 'target.itemId': item._id })
             await item.deleteOne()
+            await unlinkPacking(me, item)
          } else if (scope === 'this') {
             item.recurrence.exdates = [...new Set([...timing.exdates, original])]
             await Occurrence.deleteOne({ itemId: item._id, originalStart: original })

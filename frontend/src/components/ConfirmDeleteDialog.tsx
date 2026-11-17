@@ -56,7 +56,7 @@ const ConfirmDeleteDialog = ({
                   </AlertDialog.Close>
                   <Button
                      size='lg'
-                     className='bg-destructive px-4 text-white hover:bg-destructive/90'
+                     className='bg-destructive px-4 text-destructive-foreground hover:bg-destructive/90'
                      disabled={isPending}
                      onClick={onConfirm}
                   >

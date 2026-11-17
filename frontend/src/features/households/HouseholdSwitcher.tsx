@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Check, ChevronsUpDown, Plus } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { apiError } from '@/api/client'
 import {
@@ -22,12 +22,20 @@ import {
 import HouseholdNameForm from './HouseholdNameForm'
 import { useCreateHousehold, useCurrentHousehold, useSelectHousehold } from './householdsApi'
 import { ROLE_LABEL } from './permissions'
+import { cn } from '@/lib/utils'
+import type { NavigationItem } from '@/types/types'
 
-const HouseholdSwitcher = () => {
+/**
+ * The household menu: its pages (Members, Settings) and switching households.
+ * Highlighted like an active nav link while one of its pages is open.
+ */
+const HouseholdSwitcher = ({ items }: { items: NavigationItem[] }) => {
    const { household, households } = useCurrentHousehold()
    const select = useSelectHousehold()
    const create = useCreateHousehold()
    const navigate = useNavigate()
+   const { pathname } = useLocation()
+   const current = items.find((i) => pathname === i.href || pathname.startsWith(`${i.href}/`))
    const [creating, setCreating] = useState(false)
    if (!household) return null
 
@@ -35,13 +43,27 @@ const HouseholdSwitcher = () => {
       <>
          <DropdownMenu>
             <DropdownMenuTrigger
-               aria-label={`Household: ${household.name}. Switch household`}
-               className='flex max-w-40 min-w-0 items-center gap-1.5 rounded-lg border border-transparent px-2 py-1.5 text-sm font-medium transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 aria-expanded:bg-muted xl:max-w-56'
+               // Starts with the visible name (WCAG 2.5.3); says where you are when on one of its pages.
+               aria-label={`${household.name}, household menu${current ? `, current page: ${current.label}` : ''}`}
+               className={cn(
+                  'flex max-w-40 min-w-0 items-center gap-1.5 rounded-lg border border-transparent px-2 py-1.5 text-sm font-medium transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 aria-expanded:bg-muted sm:max-w-56 xl:max-w-72',
+                  current && 'bg-card shadow-sm ring-1 ring-border/70',
+               )}
             >
                <span className='truncate'>{household.name}</span>
                <ChevronsUpDown className='size-3.5 shrink-0 text-muted-foreground' />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align='start' className='min-w-60'>
+            <DropdownMenuContent align='start' className='min-w-72'>
+               <DropdownMenuGroup>
+                  {items.map(({ href, label, Icon }) => (
+                     <DropdownMenuItem key={href} onClick={() => navigate(href)} className={cn(current?.href === href && 'font-medium')}>
+                        <Icon className={cn(current?.href === href && 'text-primary')} />
+                        {label}
+                        {current?.href === href && <span className='sr-only'>(current page)</span>}
+                     </DropdownMenuItem>
+                  ))}
+               </DropdownMenuGroup>
+               <DropdownMenuSeparator />
                <DropdownMenuGroup>
                   <DropdownMenuLabel>Your households</DropdownMenuLabel>
                   {households.map((h) => (

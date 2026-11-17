@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Award, BarChart3, Flame, RefreshCw, WifiOff } from 'lucide-react'
+import { BarChart3, Flame, RefreshCw, WifiOff } from 'lucide-react'
 import { Temporal } from 'temporal-polyfill'
 import { apiError } from '@/api/client'
 import EmptyState from '@/components/EmptyState'
@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import type { Member } from '@/features/households/householdsApi'
 import { cn } from '@/lib/utils'
 import { ActivityChart } from './ActivityChart'
-import { BADGE_ICONS, pct } from './format'
+import { BadgeAnimal } from './BadgeAnimal'
+import { pct } from './format'
 import { BadgeGrid, Person, StatsCard, StatTile } from './parts'
 import { PeriodPicker } from './PeriodPicker'
 import { periodRange, type PeriodId } from './periods'
@@ -164,10 +165,9 @@ function Badges({ stats, members }: { stats: Stats; members: Member[] }) {
                      </span>
                      {m.badges?.map((b) => {
                         const def = stats.badgeCatalog.find((d) => d.id === b.id)
-                        const Icon = BADGE_ICONS[def?.icon ?? ''] ?? Award
                         return (
-                           <span key={b.id} title={def?.description} className='flex items-center gap-1.5 rounded-full border bg-muted/40 px-2.5 py-1 text-xs font-medium'>
-                              <Icon className='size-3.5 text-primary' aria-hidden />
+                           <span key={b.id} title={def?.description} className='flex items-center gap-1.5 rounded-full border bg-muted/40 py-0.5 ps-0.5 pe-2.5 text-xs font-medium'>
+                              {def && <BadgeAnimal animal={def.animal} accessory={def.accessory} earned className='size-6' />}
                               {def?.name ?? b.id}
                            </span>
                         )

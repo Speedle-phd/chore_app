@@ -3,7 +3,8 @@
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/geist';
 
-@custom-variant dark (&:is(.dark *, .midnight-ocean *, .plum-noir *, .ember *));
+/* Dark themes; keep in sync with `html.dark, …` below and THEMES in components/themes.ts. */
+@custom-variant dark (&:is(.dark *, .graphite *, .moss *, .ember *));
 
 @theme inline {
    --color-theme: var(--theme);
@@ -26,6 +27,7 @@
    --color-input: var(--input);
    --color-border: var(--border);
    --color-destructive: var(--destructive);
+   --color-destructive-foreground: var(--destructive-foreground);
    --color-accent-foreground: var(--accent-foreground);
    --color-accent: var(--accent);
    --color-muted-foreground: var(--muted-foreground);
@@ -49,7 +51,9 @@
    --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
+/* `.light` too, so a Light swatch shows these colours inside a dark page (theme menu). */
+:root,
+.light {
   /* Light theme text colours are set for WCAG AA (4.5:1) on every light surface, including the
      muted and accent tints (checked 2026-11-16): muted-foreground ≥ 4.78, primary on its tints ≥ 4.64,
      destructive on its tint 4.94, white on primary 5.68 / on destructive 5.71. */
@@ -80,18 +84,19 @@
   --accent-foreground: #73501E;
 
   /* Feedback */
-  --destructive: #B23F3F;
+  --destructive: #A83636;
+  --destructive-foreground: #FFFFFF;
 
   /* Borders and focus */
   --border: #E2E8E3;
   --input: #D7DFD9;
-  --ring: #6C9D87;
+  --ring: #5F907A;
 
-  /* Charts */
+  /* Charts (also the calendar kinds: their text mixes 50 % with the foreground on a 25 % fill) */
   --chart-1: #3F7060;
-  --chart-2: #D9A441;
-  --chart-3: #7599B5;
-  --chart-4: #C98575;
+  --chart-2: #B07E22;
+  --chart-3: #6A8FAD;
+  --chart-4: #BF7766;
   --chart-5: #8D83B8;
 
   --radius: 0.75rem;
@@ -135,7 +140,8 @@
   --accent-foreground: #F5D69B;
 
   /* Feedback */
-  --destructive: #F07878;
+  --destructive: #F89A9A;
+  --destructive-foreground: #2A0E0E;
 
   /* Borders and focus */
   --border: #35443B;
@@ -159,111 +165,149 @@
   --sidebar-border: #35443B;
   --sidebar-ring: #8BC5A9;
 }
-.midnight-ocean {
+/* Linen: warm cream paper with deep teal. */
+.linen {
   --theme: var(--primary);
-
-  /* Core surfaces */
-  --background: #111827;
-  --foreground: #E2E8F0;
-
-  --card: #1A2435;
-  --card-foreground: #E2E8F0;
-
-  --popover: #202D40;
-  --popover-foreground: #F1F5F9;
-
-  /* Brand: bright cyan */
-  --primary: #67E8F9;
-  --primary-foreground: #10212A;
-
-  /* Secondary surfaces */
-  --secondary: #263449;
-  --secondary-foreground: #DCE7F5;
-
-  --muted: #202C3D;
-  --muted-foreground: #A4B4C8;
-
-  /* Accent: cool blue */
-  --accent: #253B53;
-  --accent-foreground: #93C5FD;
-
-  /* Feedback */
-  --destructive: #FB7185;
-
-  /* Borders and focus */
-  --border: #344258;
-  --input: #3A4A60;
-  --ring: #67E8F9;
-
-  /* Charts */
-  --chart-1: #67E8F9;
-  --chart-2: #93C5FD;
-  --chart-3: #A5B4FC;
-  --chart-4: #F9A8D4;
-  --chart-5: #FBBF77;
-
-  /* Sidebar */
-  --sidebar: #151F30;
-  --sidebar-foreground: #E2E8F0;
-  --sidebar-primary: #67E8F9;
-  --sidebar-primary-foreground: #10212A;
-  --sidebar-accent: #263449;
-  --sidebar-accent-foreground: #DCE7F5;
-  --sidebar-border: #344258;
-  --sidebar-ring: #67E8F9;
+  --background: #F7F2EA;
+  --foreground: #2D2722;
+  --card: #FFFCF7;
+  --card-foreground: #2D2722;
+  --popover: #FFFCF7;
+  --popover-foreground: #2D2722;
+  --primary: #22665F;
+  --primary-foreground: #FFFFFF;
+  --secondary: #EDE4D7;
+  --secondary-foreground: #4A3A2C;
+  --muted: #F0E9DE;
+  --muted-foreground: #66594D;
+  --accent: #F6E1D3;
+  --accent-foreground: #883A1D;
+  --destructive: #A82F37;
+  --destructive-foreground: #FFFFFF;
+  --border: #E6DDD0;
+  --input: #DCD1C2;
+  --ring: #3E8077;
+  --chart-1: #22665F;
+  --chart-2: #A8690F;
+  --chart-3: #4A76A0;
+  --chart-4: #B0524A;
+  --chart-5: #7564A3;
+  --sidebar: #F2ECE2;
+  --sidebar-foreground: #3A3129;
+  --sidebar-primary: #22665F;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E8E0D3;
+  --sidebar-accent-foreground: #3F3328;
+  --sidebar-border: #E3DACB;
+  --sidebar-ring: #3E8077;
 }
-.plum-noir {
+/* Fjord: cool morning mist with petrol blue and a warm peach accent. */
+.fjord {
   --theme: var(--primary);
-
-  /* Core surfaces */
-  --background: #1C1724;
-  --foreground: #F0EAF6;
-
-  --card: #26202F;
-  --card-foreground: #F0EAF6;
-
-  --popover: #30263B;
-  --popover-foreground: #F5EFFB;
-
-  /* Brand: lavender */
-  --primary: #C4B5FD;
-  --primary-foreground: #241A36;
-
-  /* Secondary surfaces */
-  --secondary: #342A40;
-  --secondary-foreground: #E9DFF4;
-
-  --muted: #2B2235;
-  --muted-foreground: #B8A9C6;
-
-  /* Accent: soft rose */
-  --accent: #3C293D;
-  --accent-foreground: #F0ABFC;
-
-  /* Feedback */
-  --destructive: #FB7185;
-
-  /* Borders and focus */
-  --border: #44364F;
-  --input: #51405D;
-  --ring: #C4B5FD;
-
-  /* Charts */
-  --chart-1: #C4B5FD;
-  --chart-2: #F0ABFC;
-  --chart-3: #86D9D1;
-  --chart-4: #FDBA74;
-  --chart-5: #FDA4AF;
-
-  /* Sidebar */
-  --sidebar: #211A2B;
-  --sidebar-foreground: #F0EAF6;
-  --sidebar-primary: #C4B5FD;
-  --sidebar-primary-foreground: #241A36;
-  --sidebar-accent: #342A40;
-  --sidebar-accent-foreground: #E9DFF4;
-  --sidebar-border: #44364F;
-  --sidebar-ring: #C4B5FD;
+  --background: #F3F6F8;
+  --foreground: #1F2A33;
+  --card: #FFFFFF;
+  --card-foreground: #1F2A33;
+  --popover: #FFFFFF;
+  --popover-foreground: #1F2A33;
+  --primary: #1F5F7F;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E3EBF0;
+  --secondary-foreground: #24425A;
+  --muted: #E9EEF2;
+  --muted-foreground: #526170;
+  --accent: #FCE8D8;
+  --accent-foreground: #8A4214;
+  --destructive: #AE2F3B;
+  --destructive-foreground: #FFFFFF;
+  --border: #DCE3E9;
+  --input: #CFD8E0;
+  --ring: #3F7E9E;
+  --chart-1: #1F5F7F;
+  --chart-2: #A2650F;
+  --chart-3: #3F7F52;
+  --chart-4: #AE4F59;
+  --chart-5: #6F5EA3;
+  --sidebar: #EBF0F4;
+  --sidebar-foreground: #26333D;
+  --sidebar-primary: #1F5F7F;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #DCE6EE;
+  --sidebar-accent-foreground: #24425A;
+  --sidebar-border: #D8E0E7;
+  --sidebar-ring: #3F7E9E;
+}
+/* Graphite: neutral charcoal (no tint) with apricot. */
+.graphite {
+  --theme: var(--primary);
+  --background: #161618;
+  --foreground: #EDEDEF;
+  --card: #1F1F22;
+  --card-foreground: #EDEDEF;
+  --popover: #27272B;
+  --popover-foreground: #F4F4F6;
+  --primary: #FFA26E;
+  --primary-foreground: #2B160A;
+  --secondary: #2C2C31;
+  --secondary-foreground: #E2E2E6;
+  --muted: #26262A;
+  --muted-foreground: #A9A9B1;
+  --accent: #1F3533;
+  --accent-foreground: #92D6CB;
+  --destructive: #FF8593;
+  --destructive-foreground: #2A0B10;
+  --border: #34343A;
+  --input: #414148;
+  --ring: #FFA26E;
+  --chart-1: #FFA26E;
+  --chart-2: #E9C46A;
+  --chart-3: #7CB7E8;
+  --chart-4: #E59BC2;
+  --chart-5: #86D1A6;
+  --sidebar: #1B1B1E;
+  --sidebar-foreground: #E6E6EA;
+  --sidebar-primary: #FFA26E;
+  --sidebar-primary-foreground: #2B160A;
+  --sidebar-accent: #2C2C31;
+  --sidebar-accent-foreground: #E2E2E6;
+  --sidebar-border: #34343A;
+  --sidebar-ring: #FFA26E;
+}
+/* Moss: deep olive with lime-gold and a honey accent. */
+.moss {
+  --theme: var(--primary);
+  --background: #191C15;
+  --foreground: #E9ECDF;
+  --card: #22261D;
+  --card-foreground: #E9ECDF;
+  --popover: #2A2F24;
+  --popover-foreground: #F1F4E8;
+  --primary: #C3D46A;
+  --primary-foreground: #1E240C;
+  --secondary: #2F3527;
+  --secondary-foreground: #E1E6D3;
+  --muted: #282D22;
+  --muted-foreground: #AAB29B;
+  --accent: #3A3222;
+  --accent-foreground: #EAC787;
+  --destructive: #F7928A;
+  --destructive-foreground: #2A0E0B;
+  --border: #363D2D;
+  --input: #434B38;
+  --ring: #C3D46A;
+  --chart-1: #C3D46A;
+  --chart-2: #E8B86D;
+  --chart-3: #8DBFD9;
+  --chart-4: #E59F8E;
+  --chart-5: #B9A5E3;
+  --sidebar: #1E2219;
+  --sidebar-foreground: #E3E7D7;
+  --sidebar-primary: #C3D46A;
+  --sidebar-primary-foreground: #1E240C;
+  --sidebar-accent: #2F3527;
+  --sidebar-accent-foreground: #E1E6D3;
+  --sidebar-border: #363D2D;
+  --sidebar-ring: #C3D46A;
 }
 .ember {
   --theme: var(--primary);
@@ -294,7 +338,8 @@
   --accent-foreground: #E6A08B;
 
   /* Feedback */
-  --destructive: #F28B82;
+  --destructive: #F4938B;
+  --destructive-foreground: #2A0F0B;
 
   /* Borders and focus */
   --border: #4A3930;
@@ -334,8 +379,8 @@
       color-scheme: light;
    }
    html.dark,
-   html.midnight-ocean,
-   html.plum-noir,
+   html.graphite,
+   html.moss,
    html.ember {
       color-scheme: dark;
    }
@@ -365,3 +410,15 @@
    }
 }
 
+
+/*
+ * Sonner's light-theme toast text colours (richColors) are below 4.5:1 on their tinted
+ * backgrounds (success measured 4.25:1). Same hues, darker text. `:root` adds specificity:
+ * Sonner injects its stylesheet after ours.
+ */
+:root [data-sonner-toaster][data-sonner-theme='light'] {
+   --success-text: hsl(140, 100%, 22%);
+   --info-text: hsl(210, 92%, 35%);
+   --warning-text: hsl(31, 92%, 28%);
+   --error-text: hsl(360, 100%, 37%);
+}

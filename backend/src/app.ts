@@ -24,6 +24,7 @@ import { createIcalService } from './ical/icalService'
 import { createShoppingService } from './shopping/shoppingService'
 import { createRecipeService } from './recipes/recipeService'
 import { createHouseholdRoutes } from './households/householdRoutes'
+import { createPackingService } from './packing/packingService'
 import { createInvitationRoutes } from './invitations/invitationRoutes'
 import { createInvitationService } from './invitations/invitationService'
 import { createHouseholdService } from './households/householdService'
@@ -119,6 +120,7 @@ export function createApp(env: Env, deps: AppDeps = {}) {
          ical,
          shopping,
          createRecipeService({ shopping, calendar, imageDir: env.RECIPE_UPLOAD_DIR, ...(deps.allowFetchAddress ? { allowFetchAddress: deps.allowFetchAddress } : {}) }),
+         createPackingService({ shopping }),
          limiter(IMPORT_RATE_LIMIT),
       ),
    )

@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Trash2 } from 'lucide-react'
+import { LayoutTemplate, Trash2 } from 'lucide-react'
+import { Temporal } from 'temporal-polyfill'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import * as z from 'zod'
@@ -19,6 +20,9 @@ import { EMPTY_BIRTHDAY, fromParts, type BirthdayParts } from '@/features/househ
 import { BirthdayField } from '@/features/households/BirthdayField'
 import { cn } from '@/lib/utils'
 import type { Member } from '@/features/households/householdsApi'
+import type { ChoreTemplate } from '@/features/chores/choreTemplates'
+import { TemplatePicker } from '@/features/chores/TemplatePicker'
+import { templateRepeat, templateStart } from '@/features/chores/templates'
 import {
    useCalendarItem,
    useDeleteItem,
@@ -211,6 +215,8 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
    const save = useSaveItem(householdId, item?.id ?? null)
    const remove = useDeleteItem(householdId)
    const [confirmDelete, setConfirmDelete] = useState(false)
+   const [picking, setPicking] = useState(false)
+   const [fromTemplate, setFromTemplate] = useState<string | null>(null)
    const timezone = item?.timezone ?? viewerTimeZone()
    const form = useForm<Values>({ resolver: zodResolver(schema), defaultValues: initialValues(item, draft) })
    const [allDay, startDate, startTime, kind, memberIds, assignmentMode, rotation, repeat] = useWatch({
@@ -264,6 +270,28 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
       })
    })
 
+   /** Fills the form from a template; the person can still change everything. */
+   const applyTemplate = (t: ChoreTemplate) => {
+      const set = { shouldDirty: true, shouldValidate: form.formState.isSubmitted }
+      form.setValue('kind', 'chore', set)
+      form.setValue('title', t.title, set)
+      form.setValue('effort', t.effort, set)
+      // Don't overwrite notes someone already typed.
+      if (t.notes && !form.getValues('notes').trim()) form.setValue('notes', t.notes, set)
+      // Month-bound templates (tyres in October) move the dates, keeping the entry's length.
+      const today = Temporal.Now.plainDateISO(timezone).toString()
+      const start = form.getValues('startDate') || today
+      const next = templateStart(t, today, start)
+      form.setValue('repeat', templateRepeat(t, next), set)
+      if (next !== start) {
+         const shift = Temporal.PlainDate.from(start).until(next, { largestUnit: 'day' }).days
+         form.setValue('startDate', next, set)
+         form.setValue('endDate', addDays(form.getValues('endDate') || start, shift), set)
+      }
+      setFromTemplate(t.title)
+      setPicking(false)
+   }
+
    const mayDelete = item ? canDelete(item.createdBy) : false
 
    return (
@@ -281,7 +309,15 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
                control={form.control}
                render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid} className='gap-1.5'>
-                     <FieldLabel htmlFor={`${id}-title`}>Title</FieldLabel>
+                     <div className='flex min-h-7 flex-wrap items-center justify-between gap-2'>
+                        <FieldLabel htmlFor={`${id}-title`}>Title</FieldLabel>
+                        {!item && isChore && (
+                           <Button type='button' variant='outline' size='sm' onClick={() => setPicking(true)}>
+                              <LayoutTemplate />
+                              Start from a template
+                           </Button>
+                        )}
+                     </div>
                      <Input
                         {...field}
                         id={`${id}-title`}
@@ -291,6 +327,9 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
                         className='h-10'
                      />
                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                     <p role='status' className='text-xs text-muted-foreground empty:hidden'>
+                        {fromTemplate && `Filled in from “${fromTemplate}”: check the repeat, people and notes.`}
+                     </p>
                   </Field>
                )}
             />
@@ -557,6 +596,8 @@ function ItemForm({ householdId, members, item, draft, canDelete, onDone }: Item
                {save.isPending ? 'Saving…' : item ? 'Save changes' : 'Add entry'}
             </Button>
          </div>
+
+         {!item && <TemplatePicker open={picking} onOpenChange={setPicking} onPick={applyTemplate} />}
 
          {item && (
             <ScopeDialog

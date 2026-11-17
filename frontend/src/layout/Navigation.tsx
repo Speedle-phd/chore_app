@@ -52,7 +52,8 @@ const Navigation = ({ navigationItems }: NavigationProps) => {
             aria-label='Main'
             className='mx-auto hidden items-center gap-1 rounded-full border border-border/70 bg-muted/60 p-1 lg:flex'
          >
-            {navigationItems.map(({ href, Icon, label }) => (
+            {/* Members and Settings live in the household menu; the logo is the way home. */}
+            {navigationItems.filter((item) => item.place === 'main').map(({ href, Icon, label }) => (
                <NavLink
                   key={href}
                   to={href}
@@ -64,7 +65,7 @@ const Navigation = ({ navigationItems }: NavigationProps) => {
                   {({ isActive }) => (
                      <span
                         className={cn(
-                           'relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors xl:px-2.5',
+                           'relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
                            isActive
                               ? 'text-foreground'
                               : 'text-muted-foreground hover:text-foreground',
@@ -83,11 +84,8 @@ const Navigation = ({ navigationItems }: NavigationProps) => {
                               isActive && 'text-primary',
                            )}
                         />
-                        {/* Icons only between lg and xl, so the header never wraps */}
-                        <span className='relative z-10 hidden xl:inline'>{label}</span>
-                        {badgeFor(href) > 0 && (
-                           <CountBadge count={badgeFor(href)} className='absolute -top-1 -right-1 z-20 xl:static' />
-                        )}
+                        <span className='relative z-10'>{label}</span>
+                        {badgeFor(href) > 0 && <CountBadge count={badgeFor(href)} className='relative z-20' />}
                      </span>
                   )}
                </NavLink>

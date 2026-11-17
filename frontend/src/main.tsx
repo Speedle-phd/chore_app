@@ -11,6 +11,8 @@ import MemberOverview from './routes/MemberOverview.tsx'
 import Recipes from './routes/Recipes.tsx'
 import RecipeDetail from './routes/RecipeDetail.tsx'
 import RecipeEdit from './routes/RecipeEdit.tsx'
+import Packing from './routes/Packing.tsx'
+import PackingListPage from './routes/PackingListPage.tsx'
 import NotFound from './routes/NotFound.tsx'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { ThemeProvider } from '@/components/theme-provider'
@@ -57,6 +59,8 @@ const router = createBrowserRouter([
                { path: 'recipes/new', Component: RecipeEdit },
                { path: 'recipes/:recipeId', Component: RecipeDetail },
                { path: 'recipes/:recipeId/edit', Component: RecipeEdit },
+               { path: 'packing', Component: Packing },
+               { path: 'packing/:listId', Component: PackingListPage },
                { path: 'settings', Component: Settings },
                { path: 'invitations', Component: Invitations },
                { path: 'account', Component: Account },

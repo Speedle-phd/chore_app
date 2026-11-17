@@ -1,10 +1,9 @@
-import { Award, Lock } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import type { Member } from '@/features/households/householdsApi'
 import { avatarSrc, initials } from '@/lib/member'
 import { cn } from '@/lib/utils'
-import { BADGE_ICONS } from './format'
+import { BadgeAnimal } from './BadgeAnimal'
 import type { BadgeDef, BadgeProgress } from './statsApi'
 
 /** Avatar + first name; links to the member's overview when they still exist. */
@@ -63,17 +62,11 @@ export function BadgeGrid({
    return (
       <ul className='grid gap-2 sm:grid-cols-2 lg:grid-cols-3'>
          {catalog.map((d) => {
-            const Icon = BADGE_ICONS[d.icon] ?? Award
             const got = earned.find((e) => e.id === d.id)
             const p = progress.find((x) => x.id === d.id)
             return (
                <li key={d.id} className={cn('flex items-start gap-3 rounded-xl border p-3 text-sm', got ? 'border-primary/50' : 'bg-muted/30')}>
-                  <span
-                     className={cn('grid size-8 shrink-0 place-items-center rounded-full', got ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground')}
-                     aria-hidden
-                  >
-                     {got ? <Icon className='size-4' /> : <Lock className='size-4' />}
-                  </span>
+                  <BadgeAnimal animal={d.animal} accessory={d.accessory} earned={Boolean(got)} className='size-14' />
                   <span className='min-w-0 flex-1'>
                      <span className='block font-medium'>
                         {d.name}

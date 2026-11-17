@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Cake, Check, CircleSlash, FileUp, Plane, RefreshCw, Repeat } from 'lucide-react'
+import { AlertTriangle, Cake, Check, CircleSlash, FileUp, Flag, Plane, RefreshCw, Repeat } from 'lucide-react'
 import type { EventDisplayInfo, EventInput } from '@fullcalendar/react'
 import { Temporal } from 'temporal-polyfill'
 import { toast } from 'sonner'
@@ -27,6 +27,7 @@ import { ScopeDialog } from '@/features/calendar/ScopeDialog'
 import { instantToParts, nextHourSlot, viewerTimeZone } from '@/features/calendar/time'
 import { useHousehold, useMembers, type Member } from '@/features/households/householdsApi'
 import { ImportDialog } from '@/features/ical/ImportDialog'
+import { STATES, useHolidays, type Holiday, type StateCode } from '@/features/holidays/holidaysApi'
 import { canDeleteCalendarItem } from '@/features/households/permissions'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { usePageMeta } from './usePageMeta'
@@ -49,11 +50,39 @@ const toEvent = (instance: CalendarInstance): EventInput => ({
    // Birthdays from member profiles are edited in the profile; archived chores are history.
    editable: instance.source === 'entry' && !instance.archived,
    extendedProps: { instance },
+   sortGroup: 1,
 })
+
+/** A public holiday: read-only, muted, all day, shown before the household's entries. */
+const toHolidayEvent = (holiday: Holiday, state: StateCode): EventInput => ({
+   id: `holiday-${holiday.date}-${holiday.id}`,
+   title: holiday.name,
+   start: holiday.date,
+   allDay: true,
+   editable: false,
+   // Neutral grey; the calendar tints the box and mixes the text from it (readable in every theme).
+   color: 'var(--muted-foreground)',
+   extendedProps: { holiday, regionName: STATES[state] },
+   sortGroup: 0,
+})
+
+function HolidayContent({ holiday, regionName, titleClass }: { holiday: Holiday; regionName: string; titleClass: string }) {
+   return (
+      <span className={cn(titleClass, 'flex min-w-0 items-center gap-1 font-normal')}>
+         <Flag aria-label='Public holiday' className='size-3 shrink-0' />
+         <span className='truncate' title={holiday.partial ? `${holiday.name} · only in parts of ${regionName}` : holiday.name}>
+            {holiday.name}
+            {holiday.partial && <span className='opacity-80'> · only in parts of {regionName}</span>}
+         </span>
+      </span>
+   )
+}
 
 type EventContentProps = EventDisplayInfo & { people: Map<string, Member> }
 
 function EventContent({ event, view, timeText, timeClass, titleClass, isNarrow, isShort, people }: EventContentProps) {
+   const holiday = event.extendedProps.holiday as Holiday | undefined
+   if (holiday) return <HolidayContent holiday={holiday} regionName={String(event.extendedProps.regionName)} titleClass={titleClass} />
    const instance = event.extendedProps.instance as CalendarInstance | undefined
    // The placeholder drawn while selecting a time range has no entry behind it.
    if (!instance) {
@@ -119,10 +148,16 @@ const Calendar = () => {
    const [range, setRange] = useState<CalendarRange | null>(null)
    const [viewType, setViewType] = useState(initialView)
    // Remembered per household in this browser.
-   const [storedFilters, storeFilters] = useLocalStorage(`calendar-filters-${household.id}`, { kinds: ALL_KINDS, memberIds: [], seen: ALL_KINDS })
+   const [storedFilters, storeFilters] = useLocalStorage(`calendar-filters-${household.id}`, {
+      kinds: ALL_KINDS,
+      memberIds: [] as string[],
+      seen: ALL_KINDS,
+      holidays: true,
+   })
    const filters: Filters = {
       kinds: visibleKinds(storedFilters),
       memberIds: storedFilters?.memberIds ?? [],
+      holidays: storedFilters?.holidays ?? true,
    }
    // Remember which kinds existed, so kinds added later start visible (visibleKinds).
    const setFilters = (next: Filters) => storeFilters({ ...next, seen: ALL_KINDS })
@@ -130,6 +165,12 @@ const Calendar = () => {
       kinds: filters.kinds.length < ALL_KINDS.length ? filters.kinds : [],
       memberIds: filters.memberIds,
    })
+   const state = household.region.state
+   const holidays = useHolidays(household.id, filters.holidays ? state : null, range)
+   const events = useMemo(
+      () => [...(calendar.data ?? []).map(toEvent), ...(state && filters.holidays ? (holidays.data ?? []).map((h) => toHolidayEvent(h, state)) : [])],
+      [calendar.data, holidays.data, state, filters.holidays],
+   )
    const change = useChangeOccurrence(household.id)
    const preview = useCalendarPreview(household.id)
 
@@ -201,6 +242,7 @@ const Calendar = () => {
             value={{ ...filters, memberIds: filters.memberIds.filter((id) => memberList.some((m) => m.id === id)) }}
             onChange={setFilters}
             members={memberList}
+            hasHolidays={state !== null}
          />
 
          {calendar.isError && (
@@ -236,11 +278,15 @@ const Calendar = () => {
                selectMirror
                dragRevertDuration={200}
                addButton={{ text: 'Add', hint: 'Add an entry', isPrimary: true, click: openNew }}
-               events={(calendar.data ?? []).map(toEvent)}
+               events={events}
+               // Public holidays first in a day, then the usual order.
+               eventOrder='sortGroup,start,-duration,allDay,title'
                eventContent={(arg) => <EventContent {...arg} people={people} />}
                eventClick={(info) => {
                   info.jsEvent.preventDefault()
-                  setSelected(info.event.extendedProps.instance as CalendarInstance)
+                  const instance = info.event.extendedProps.instance as CalendarInstance | undefined
+                  // Holidays are read-only and say everything in their title.
+                  if (instance) setSelected(instance)
                }}
                eventDrop={onMoved}
                eventResize={onMoved}

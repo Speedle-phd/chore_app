@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ME_KEY } from '@/api/client'
 import { useMe, type User } from '@/features/auth/authApi'
+import type { StateCode } from '@/features/holidays/holidaysApi'
 
 export type Role = 'owner' | 'admin' | 'member'
 
@@ -11,6 +12,8 @@ export type Household = {
    memberCount: number
    /** Playful parts of the chore stats (owners/admins switch them). */
    motivation: { leaderboard: boolean; badges: boolean; streaks: boolean }
+   /** Bundesland for public holidays; null = none shown. */
+   region: { state: StateCode | null }
    createdAt: string
 }
 
@@ -70,6 +73,16 @@ export function useSetMotivation(hid: string) {
       onSuccess: (household) => {
          queryClient.setQueryData<Household[]>(HOUSEHOLDS_KEY, (list) => list?.map((h) => (h.id === household.id ? household : h)))
          void queryClient.invalidateQueries({ queryKey: ['household', hid, 'stats'] })
+      },
+   })
+}
+
+export function useSetRegion(hid: string) {
+   const queryClient = useQueryClient()
+   return useMutation({
+      mutationFn: async (state: StateCode | null) => (await api.patch<Household>(`/households/${hid}/region`, { state })).data,
+      onSuccess: (household) => {
+         queryClient.setQueryData<Household[]>(HOUSEHOLDS_KEY, (list) => list?.map((h) => (h.id === household.id ? household : h)))
       },
    })
 }

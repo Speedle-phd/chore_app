@@ -20,7 +20,10 @@ export type MemberStats = {
    progress: BadgeProgress[] | null
 }
 export type BadgeProgress = { id: string; value: number; goal: number }
-export type BadgeDef = { id: string; name: string; description: string; icon: string }
+/** Mirrors backend/src/domain/badges.ts (BADGE_ANIMALS, BADGE_ACCESSORIES). */
+export type BadgeAnimalId = 'panda' | 'koala' | 'seal' | 'icebear' | 'racoon' | 'dog' | 'owl' | 'cat'
+export type BadgeAccessory = 'none' | 'sparkles' | 'medal' | 'crown' | 'glasses' | 'headband' | 'heart' | 'hearts' | 'sun' | 'flame' | 'moon' | 'shades' | 'star'
+export type BadgeDef = { id: string; name: string; description: string; animal: BadgeAnimalId; accessory: BadgeAccessory; goal: number }
 export type Stats = {
    from: string
    to: string

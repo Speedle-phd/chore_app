@@ -94,7 +94,7 @@ export function createStatsService(calendar: CalendarService) {
             progress: motivation.badges ? badgeProgress(rows, m.memberId, tz, streak.current) : null,
          }
       }
-      const badgeCatalog = motivation.badges ? BADGES.map(({ id, name, description, icon }) => ({ id, name, description, icon })) : []
+      const badgeCatalog = motivation.badges ? BADGES.map(({ id, name, description, animal, accessory, goal }) => ({ id, name, description, animal, accessory, goal })) : []
       return { motivation, tz, today, rows, inPeriod, perMember, memberView, bucket, badgeCatalog }
    }
 

@@ -283,3 +283,55 @@ describe('leaving and deleting', () => {
       expect((await User.findById(owner.user._id))?.lastHouseholdId).toBeNull()
    })
 })
+
+describe('region and public holidays', () => {
+   it('is off by default and only managers can set the state', async () => {
+      const { owner, join, base, hid } = await household()
+      const member = await join('member')
+      expect((await as(owner.cookie).get(base)).body.region).toEqual({ state: null })
+      expect((await as(owner.cookie).get(`${base}/holidays?from=2026-01-01&to=2027-01-01`)).body).toEqual({ state: null, holidays: [] })
+
+      expect((await as(member.cookie).patch(`${base}/region`, { state: 'BY' })).status).toBe(403)
+      const res = await as(owner.cookie).patch(`${base}/region`, { state: 'BY' })
+      expect(res.status).toBe(200)
+      expect(res.body.region).toEqual({ state: 'BY' })
+      expect((await Household.findById(hid).lean())?.region?.state).toBe('BY')
+
+      expect((await as(owner.cookie).patch(`${base}/region`, { state: null })).body.region).toEqual({ state: null })
+   })
+
+   it('rejects unknown states and extra fields', async () => {
+      const { owner, base } = await household()
+      expect((await as(owner.cookie).patch(`${base}/region`, { state: 'XX' })).status).toBe(400)
+      expect((await as(owner.cookie).patch(`${base}/region`, { state: 'BY', country: 'AT' })).status).toBe(400)
+   })
+
+   it('lists the state’s holidays for every member, end exclusive', async () => {
+      const { owner, join, base } = await household()
+      const member = await join('member')
+      await as(owner.cookie).patch(`${base}/region`, { state: 'BY' })
+      const res = await as(member.cookie).get(`${base}/holidays?from=2026-08-01&to=2026-11-01`)
+      expect(res.status).toBe(200)
+      expect(res.body).toEqual({
+         state: 'BY',
+         holidays: [
+            { date: '2026-08-15', id: 'mariae-himmelfahrt', name: 'Mariä Himmelfahrt', partial: true },
+            { date: '2026-10-03', id: 'tag-der-deutschen-einheit', name: 'Tag der Deutschen Einheit', partial: false },
+         ],
+      })
+   })
+
+   it('validates the range', async () => {
+      const { owner, base } = await household()
+      expect((await as(owner.cookie).get(`${base}/holidays?from=2026-02-01&to=2026-01-01`)).status).toBe(400)
+      expect((await as(owner.cookie).get(`${base}/holidays?from=2026-01-01&to=2027-03-01`)).status).toBe(400)
+      expect((await as(owner.cookie).get(`${base}/holidays?from=yesterday&to=2026-01-01`)).status).toBe(400)
+   })
+
+   it('answers 404 to non-members', async () => {
+      const { base } = await household()
+      const stranger = as((await signedInUser(app, 'Stranger')).cookie)
+      expect((await stranger.get(`${base}/holidays?from=2026-01-01&to=2026-02-01`)).status).toBe(404)
+      expect((await stranger.patch(`${base}/region`, { state: 'BY' })).status).toBe(404)
+   })
+})

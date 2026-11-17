@@ -1,18 +1,5 @@
-import { Award, Clock, Dumbbell, Flame, FlameKindling, HandHeart, Medal, Sparkles, Trophy, type LucideIcon } from 'lucide-react'
 import type { BadgeProgress } from './statsApi'
 
-/** Icon per badge (`icon` names from the server's catalog). */
-export const BADGE_ICONS: Record<string, LucideIcon> = {
-   sparkles: Sparkles,
-   medal: Medal,
-   award: Award,
-   trophy: Trophy,
-   clock: Clock,
-   dumbbell: Dumbbell,
-   'hand-heart': HandHeart,
-   flame: Flame,
-   'flame-kindling': FlameKindling,
-}
 
 export const pct = (n: number | null) => (n === null ? '–' : `${Math.round(n * 100)}%`)
 

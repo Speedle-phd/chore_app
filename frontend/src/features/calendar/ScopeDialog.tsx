@@ -73,7 +73,7 @@ function ScopeDialogOpen({
                   </AlertDialog.Close>
                   <Button
                      size='lg'
-                     className={cn('px-4', destructive && 'bg-destructive text-white hover:bg-destructive/90')}
+                     className={cn('px-4', destructive && 'bg-destructive text-destructive-foreground hover:bg-destructive/90')}
                      disabled={isPending}
                      onClick={() => onConfirm(scope)}
                   >

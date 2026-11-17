@@ -11,6 +11,7 @@ import HouseholdNameForm from '@/features/households/HouseholdNameForm'
 import { RemindersSection } from '@/features/reminders/RemindersSection'
 import { FeedSection } from '@/features/ical/FeedSection'
 import { MotivationSection } from '@/features/stats/MotivationSection'
+import { RegionSection } from '@/features/holidays/RegionSection'
 import {
    useDeleteHousehold,
    useHousehold,
@@ -60,6 +61,13 @@ const Settings = () => {
                ) : (
                   <p className='text-sm text-muted-foreground'>Only owners and admins can rename the household.</p>
                )}
+            </SettingsSection>
+
+            <SettingsSection
+               title='Public holidays'
+               description='Show the public holidays of your German state in the calendar.'
+            >
+               <RegionSection household={household} />
             </SettingsSection>
 
             <SettingsSection

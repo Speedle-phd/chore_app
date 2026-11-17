@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { badgeProgress, earnBadges } from './badges'
+import { BADGE_ACCESSORIES, BADGE_ANIMALS, BADGES, badgeProgress, earnBadges } from './badges'
 import { activitySeries, choreStats, creditedCompletions, fairShare, memberStats, streaks, totals, type StatsRow } from './stats'
 
 const TZ = 'Europe/Berlin'
@@ -109,6 +109,51 @@ describe('earnBadges', () => {
    })
 })
 
+describe('time-of-day, weekend and variety badges (local time)', () => {
+   // 10 completions each; Berlin is UTC+1 in February.
+   const at = (day: number, utcTime: string) => `2026-02-${String(day).padStart(2, '0')}T${utcTime}Z`
+   const progress = (rows: StatsRow[]) => Object.fromEntries(badgeProgress(rows, 'ada', TZ, 0).map((p) => [p.id, p.value]))
+
+   it('early bird: before 08:00 local', () => {
+      const early = Array.from({ length: 10 }, (_, i) => row({ completions: [done('ada', at(i + 2, '06:30:00'))] })) // 07:30 Berlin
+      expect(earnBadges(early, 'ada', TZ).map((b) => b.id)).toContain('early')
+      const notEarly = Array.from({ length: 10 }, (_, i) => row({ completions: [done('ada', at(i + 2, '07:00:00'))] })) // 08:00 Berlin
+      expect(progress(notEarly).early).toBe(0)
+   })
+
+   it('night owl: from 21:00 local', () => {
+      const late = Array.from({ length: 10 }, (_, i) => row({ completions: [done('ada', at(i + 2, '20:00:00'))] })) // 21:00 Berlin
+      expect(earnBadges(late, 'ada', TZ).map((b) => b.id)).toContain('night')
+      expect(progress(late.slice(0, 3)).night).toBe(3)
+   })
+
+   it('weekend: Saturdays and Sundays in the zone', () => {
+      // 7 and 8 Feb 2026 are Sat and Sun; 23:30 UTC on Friday the 6th is already Saturday in Berlin.
+      const rows = [row({ completions: [done('ada', at(6, '23:30:00'))] }), row({ completions: [done('ada', at(8, '12:00:00'))] }), row({ completions: [done('ada', at(9, '12:00:00'))] })]
+      expect(progress(rows).weekend).toBe(2)
+   })
+
+   it('variety: different chores, not repeats', () => {
+      const rows = Array.from({ length: 12 }, (_, i) => row({ itemId: `chore-${i % 10}`, completions: [done('ada', at(i + 2, '12:00:00'))] }))
+      expect(progress(rows.slice(0, 5)).variety).toBe(5)
+      expect(earnBadges(rows, 'ada', TZ).map((b) => b.id)).toContain('variety')
+   })
+})
+
+describe('badge catalog', () => {
+   it('every badge has an animal, an accessory, a positive goal and a unique id and name', () => {
+      expect(new Set(BADGES.map((b) => b.id)).size).toBe(BADGES.length)
+      expect(new Set(BADGES.map((b) => b.name)).size).toBe(BADGES.length)
+      for (const b of BADGES) {
+         expect(BADGE_ANIMALS).toContain(b.animal)
+         expect(BADGE_ACCESSORIES).toContain(b.accessory)
+         expect(b.goal).toBeGreaterThan(0)
+      }
+      // All eight animals appear.
+      expect(new Set(BADGES.map((b) => b.animal)).size).toBe(BADGE_ANIMALS.length)
+   })
+})
+
 describe('badgeProgress', () => {
    // Three done: 10–12 March; the 11th is effort 4, the 12th was done after it was due.
    const rows = [
@@ -121,13 +166,22 @@ describe('badgeProgress', () => {
       expect(progress).toEqual({
          first: '1/1',
          ten: '3/10',
+         twentyfive: '3/25',
          fifty: '3/50',
          hundred: '3/100',
+         legend: '3/250',
          punctual: '2/20',
+         wise: '2/100',
          heavy: '1/5',
+         titan: '1/25',
          standin: '0/5',
+         guardian: '0/20',
          week: '2/7',
          month: '2/30',
+         early: '0/10',
+         night: '0/10',
+         weekend: '0/10',
+         variety: '1/10',
       })
    })
    it('someone with nothing done starts at zero', () => {
