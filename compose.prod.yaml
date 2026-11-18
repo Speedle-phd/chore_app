@@ -6,12 +6,17 @@
 #
 # Only "web" is reachable from outside (ports 80/443). Everything else talks
 # over the internal network.
+#
+# Images: CI pushes them to ghcr.io for every commit on main (.github/workflows/ci.yml).
+# HEARTH_TAG picks the version (a commit SHA, or "main" = newest); the deploy sets it.
+# `up -d --build` still builds them on the server from the source instead.
 name: hearth
 
 services:
   # Caddy: serves the app, gets HTTPS certificates automatically, forwards
   # /api, /uploads and /socket.io to the backend.
   web:
+    image: ${HEARTH_IMAGES:-ghcr.io/speedle-phd/hearth}-web:${HEARTH_TAG:-main}
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -36,6 +41,7 @@ services:
         condition: service_healthy
 
   backend:
+    image: ${HEARTH_IMAGES:-ghcr.io/speedle-phd/hearth}-backend:${HEARTH_TAG:-main}
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -61,6 +67,7 @@ services:
   # Background jobs (daily reminder e-mails): the backend image with another
   # command. No port; the heartbeat check replaces the image's HTTP check.
   worker:
+    image: ${HEARTH_IMAGES:-ghcr.io/speedle-phd/hearth}-backend:${HEARTH_TAG:-main}
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -86,6 +93,7 @@ services:
         condition: service_healthy
 
   mailer:
+    image: ${HEARTH_IMAGES:-ghcr.io/speedle-phd/hearth}-mailer:${HEARTH_TAG:-main}
     build:
       context: ./mailer
       dockerfile: Dockerfile
