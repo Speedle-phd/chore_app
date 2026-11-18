@@ -6,6 +6,8 @@ import { createReminderRoutes } from '../reminders/reminderRoutes'
 import type { ReminderService } from '../reminders/reminderService'
 import { createHouseholdInvitationRoutes } from '../invitations/invitationRoutes'
 import type { InvitationService } from '../invitations/invitationService'
+import { createHouseholdGuestRoutes } from '../guest/guestRoutes'
+import type { GuestService } from '../guest/guestService'
 import { createHouseholdIcalRoutes } from '../ical/icalRoutes'
 import type { IcalService } from '../ical/icalService'
 import { createShoppingRoutes } from '../shopping/shoppingRoutes'
@@ -17,6 +19,8 @@ import type { PackingService } from '../packing/packingService'
 import { createRewardRoutes } from '../rewards/rewardRoutes'
 import { createPinboardRoutes } from '../pinboard/pinboardRoutes'
 import { createPinboardService } from '../pinboard/pinboardService'
+import { createChatRoutes } from '../chat/chatRoutes'
+import { createChatService } from '../chat/chatService'
 import { createRewardService } from '../rewards/rewardService'
 import { UnauthorizedError } from '../errors'
 import upload from '../middleware/avatarUpload'
@@ -46,6 +50,7 @@ export function createHouseholdRoutes(
    recipes: RecipeService,
    packing: PackingService,
    importLimit: RequestHandler,
+   guest: GuestService,
 ) {
    const router = Router()
 
@@ -101,6 +106,8 @@ export function createHouseholdRoutes(
    one.use('/packing', createPackingRoutes(packing))
    one.use('/rewards', createRewardRoutes(createRewardService({ stats })))
    one.use('/posts', createPinboardRoutes(createPinboardService()))
+   one.use('/chat', createChatRoutes(createChatService()))
+   one.use('/guest', createHouseholdGuestRoutes(guest))
 
    one.get('/members', async (req, res) => {
       res.json(await households.listMembers(me(req)))

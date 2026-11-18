@@ -10,6 +10,8 @@ import { postView } from './pinboardViews'
 
 /** Posts shown at most (pinned first, then newest). App choice. */
 const MAX_POSTS = 100
+/** Unread counts stop here (the badge shows "99+"). App choice. */
+const MAX_UNREAD = 100
 
 const notExpired = (now: Date) => ({ $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] })
 
@@ -28,13 +30,36 @@ export function createPinboardService() {
       if (!canDeleteShared(me.role, isAuthor(me, post))) throw new ForbiddenError('Only who posted it or an admin can do that.')
    }
 
+   /** New notes and polls by others since the last look at the board (since joining, at first). */
+   async function unread(me: MembershipType, now: Date) {
+      const membership = await Membership.findById(me._id).select('postsReadAt createdAt').lean()
+      const since = membership?.postsReadAt ?? membership?.createdAt ?? new Date(0)
+      const count = await Post.countDocuments(
+         { householdId: me.householdId, authorId: { $ne: me._id }, createdAt: { $gt: since }, ...notExpired(now) },
+         { limit: MAX_UNREAD },
+      )
+      return { count, readAt: since.toISOString() }
+   }
+
    return {
+      unread,
+
+      /** Seen up to this post (the newest one on screen); the position only moves forward. */
+      async markRead(me: MembershipType, upTo: string, now: Date) {
+         const post = await findPost(me, upTo, now)
+         await Membership.updateOne(
+            { _id: me._id, $or: [{ postsReadAt: null }, { postsReadAt: { $lt: post.createdAt } }] },
+            { $set: { postsReadAt: post.createdAt } },
+         )
+         return unread(me, now)
+      },
+
       async list(me: MembershipType, now: Date) {
          const posts = await Post.find({ householdId: me.householdId, ...notExpired(now) })
             .sort({ pinned: -1, createdAt: -1 })
             .limit(MAX_POSTS)
             .lean()
-         return posts.map((p) => postView(p, now))
+         return posts.map((p) => postView(p, now, me._id.toString()))
       },
 
       async create(me: MembershipType, input: PostInput, now: Date) {
@@ -46,11 +71,13 @@ export function createPinboardService() {
             expiresAt: expiresAt(input.expiry, now),
             poll:
                input.kind === 'poll'
-                  ? { options: input.options.map((text) => ({ text })), multiple: input.multiple, closesAt: expiresAt(input.closes, now), votes: [] }
+                  ? { options: input.options.map((text) => ({ text })), multiple: input.multiple, resultsAfterVote: input.resultsAfterVote, closesAt: expiresAt(input.closes, now), votes: [] }
                   : null,
          })
+         // Your own post counts as seen.
+         await Membership.updateOne({ _id: me._id }, { $set: { postsReadAt: post.createdAt } })
          changed(me)
-         return postView(post, now)
+         return postView(post, now, me._id.toString())
       },
 
       /** Only the author edits the text; a poll's question only until someone has voted. */
@@ -62,7 +89,7 @@ export function createPinboardService() {
          post.editedAt = now
          await post.save()
          changed(me)
-         return postView(post, now)
+         return postView(post, now, me._id.toString())
       },
 
       /** Pinned posts stay until unpinned; unpinning gives them a week. */
@@ -75,7 +102,7 @@ export function createPinboardService() {
             await post.save()
             changed(me)
          }
-         return postView(post, now)
+         return postView(post, now, me._id.toString())
       },
 
       async remove(me: MembershipType, id: string, now: Date) {
@@ -95,7 +122,7 @@ export function createPinboardService() {
          post.poll.closedAt = now
          await post.save()
          changed(me)
-         return postView(post, now)
+         return postView(post, now, me._id.toString())
       },
 
       /**
@@ -144,7 +171,7 @@ export function createPinboardService() {
          changed(me)
          const fresh = await Post.findById(post._id).lean()
          if (!fresh) throw new NotFoundError('Post not found')
-         return postView(fresh, now)
+         return postView(fresh, now, me._id.toString())
       },
    }
 }

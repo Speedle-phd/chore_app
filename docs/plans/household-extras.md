@@ -1,6 +1,6 @@
 # Plan: Household extras (candidate features)
 
-Status: **proposed 2026-11-16.** Chosen so far: 1, 3, 11 → [holidays-packing-pwa.md](holidays-packing-pwa.md); 7, 10, 12, 13 (2026-11-16) → [rewards-pinboard-guest.md](rewards-pinboard-guest.md). User decisions are in those plans. The rest is backlog until the user picks more.
+Status: **proposed 2026-11-16.** Chosen so far: 1, 3, 11 → [holidays-packing-pwa.md](holidays-packing-pwa.md); 7, 10, 12, 13 (2026-11-16) → [rewards-pinboard-guest.md](rewards-pinboard-guest.md), which also grew a household chat (user request 2026-11-17, not in this list). User decisions are in those plans. The rest is backlog until the user picks more.
 
 ## How to use this plan
 

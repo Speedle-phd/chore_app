@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { RefreshCw, StickyNote } from 'lucide-react'
 import { apiError } from '@/api/client'
 import { Button } from '@/components/ui/button'
@@ -7,9 +7,8 @@ import type { Household, Member } from '@/features/households/householdsApi'
 import { canManage } from '@/features/households/permissions'
 import { cn } from '@/lib/utils'
 import { Composer } from './Composer'
-import { usePosts } from './pinboardApi'
+import { useMarkPostsRead, usePosts, usePostsUnread } from './pinboardApi'
 import { PostCard } from './PostCard'
-import { markSeen } from './seen'
 
 /** Posts shown before "Show all". App choice. */
 const PREVIEW = 6
@@ -26,7 +25,6 @@ function useNow() {
 
 /** Home page: notes and polls for the household. */
 export function Pinboard({ household, members }: { household: Household; members: Member[] }) {
-   const id = useId()
    const posts = usePosts(household.id)
    const now = useNow()
    const [showAll, setShowAll] = useState(false)
@@ -37,25 +35,29 @@ export function Pinboard({ household, members }: { household: Household; members
    const voter = voters.find((m) => m.id === voterId) ?? me
    const manager = canManage(household.role)
 
-   // Looking at the board marks everything on it as seen (header dot), also posts arriving live.
-   const newest = posts.data?.reduce((max, p) => (p.createdAt > max ? p.createdAt : max), '')
+   // Looking at the board marks everything on it as read (Board/Pinboard counts), also posts arriving
+   // live, but only while the page is visible. The newest by time, not the first (pinned come first).
+   const unread = usePostsUnread(household.id).data?.count ?? 0
+   const markRead = useMarkPostsRead(household.id)
+   const newest = posts.data?.reduce<{ id: string; at: string } | null>((max, p) => (!max || p.createdAt > max.at ? { id: p.id, at: p.createdAt } : max), null)
    useEffect(() => {
-      if (newest) markSeen(household.id, newest)
-   }, [household.id, newest])
+      const read = () => {
+         if (newest && unread > 0 && document.visibilityState === 'visible') markRead.mutate(newest.id)
+      }
+      read()
+      document.addEventListener('visibilitychange', read)
+      return () => document.removeEventListener('visibilitychange', read)
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run when the newest post or the count changes
+   }, [newest?.id, unread])
 
    const list = posts.data ?? []
    const shown = showAll ? list : list.slice(0, PREVIEW)
    const hasPolls = list.some((p) => p.poll?.open)
 
    return (
-      <section aria-labelledby={`${id}-title`} className='space-y-4'>
+      <section aria-label='Pinboard' className='space-y-4'>
          <div className='flex flex-wrap items-end justify-between gap-3'>
-            <div>
-               <h2 id={`${id}-title`} className='text-lg font-semibold'>
-                  Pinboard
-               </h2>
-               <p className='text-sm text-muted-foreground'>Notes and quick polls for everyone in {household.name}.</p>
-            </div>
+            <p className='text-sm text-muted-foreground'>Notes and quick polls for everyone in {household.name}.</p>
             {hasPolls && voters.length > 1 && (
                <label className='flex items-center gap-2 text-sm'>
                   Voting as

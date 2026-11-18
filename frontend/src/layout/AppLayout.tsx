@@ -11,6 +11,7 @@ import {
    ClipboardCheck,
    Home,
    Luggage,
+   MessagesSquare,
    Settings,
    ShoppingCartPlus,
    UserGroup,
@@ -64,6 +65,13 @@ const navigationItems: NavigationItem[] = [
       href: '/packing',
       Icon: Luggage,
       subtitle: 'Ready for the next trip',
+      place: 'main',
+   },
+   {
+      label: 'Board',
+      href: '/board',
+      Icon: MessagesSquare,
+      subtitle: 'Notes, quick polls and the household chat',
       place: 'main',
    },
    {

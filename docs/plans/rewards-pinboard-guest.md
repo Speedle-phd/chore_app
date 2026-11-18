@@ -1,6 +1,6 @@
 # Plan: Chore templates, rewards, pinboard and polls, guest page
 
-Status: **phases 1–3 done** (2026-11-16/17, uncommitted); **phase 4 (guest page) next**, not started. Features 10, 7, 12 and 13 from [household-extras.md](household-extras.md). Conventions: [../HANDOFF.md](../HANDOFF.md). The installable app ([holidays-packing-pwa.md](holidays-packing-pwa.md) phase 3) is postponed until after this (user decision 2026-11-16).
+Status: **phases 1–3 done** (2026-11-16/17, uncommitted); **phase 3b (Board page, chat, better polls) done 2026-11-17** with follow-ups (post counts, chat fade + jump, emojis, reactions); **phase 3c (who is typing, reactions on the bubble) next**, then phase 4 (guest page). Features 10, 7, 12 and 13 from [household-extras.md](household-extras.md). Conventions: [../HANDOFF.md](../HANDOFF.md). The installable app ([holidays-packing-pwa.md](holidays-packing-pwa.md) phase 3) is postponed until after this (user decision 2026-11-16).
 
 ## User decisions (2026-11-16)
 
@@ -11,7 +11,7 @@ Status: **phases 1–3 done** (2026-11-16/17, uncommitted); **phase 4 (guest pag
 
 ## App choices (not user decisions; the user can overrule)
 
-- **Order:** 1 templates (S) → 2 rewards (M) → 3 pinboard (M) → 4 guest page (S–M). Independent of each other; templates first because it's small.
+- **Order:** 1 templates (S) → 2 rewards (M) → 3 pinboard (M) → 3b Board page, chat, polls (user request) → 3c chat polish (user request) → 4 guest page (S–M). Independent of each other; templates first because it's small.
 - **Where things live:** templates in the chore dialog; rewards as a 4th tab on Chores (`?tab=rewards`); the pinboard on the home page (`/`, the logo link, "your household at a glance"); the guest page in Settings, with the public page at `/guest/<token>`. No new nav links: the header is full.
 - **Who may do what** (mirrors existing rules): everyone posts and votes; deleting a post = author or admins (`canDeleteShared`); rewards and guest info are edited by managers (`canManage`); you redeem and vote for yourself, and for profiles without login anyone may vote but only managers redeem (kids' pocket money shouldn't be spent by a sibling).
 - English template titles, like the starter packing templates.
@@ -69,7 +69,42 @@ Status: **phases 1–3 done** (2026-11-16/17, uncommitted); **phase 4 (guest pag
 
 **Verify:** tests; browser with two users (post appears live, vote live, change vote, close poll, expiry), phone + dark, axe.
 
-## Phase 4 — Guest / babysitter page (S–M)
+## Phase 3b — Board page, household chat, better polls (M–L) ✅ done 2026-11-17
+
+**Follow-ups (user requests 2026-11-17, done):** new notes/polls counted like messages (server-side read position), chat top fade and "jump to the newest" button, emoji picker (chat, edit, pinboard composer) and emoji reactions on chat messages. See HANDOFF → Decisions.
+
+User decisions (2026-11-17): the pinboard moves to its own page **Board** (one new header link) with tabs **Pinboard | Chat**; **one household chat** (no direct messages); messages are **kept**, everyone can edit/delete their own, owners/admins can remove any; polls improved in all four areas (creating, reading results, seeing who voted, look and feel).
+
+**Board page** `/board` (`?tab=chat`): nav link "Board" with an unread count (chat) or a dot (new posts) instead of the logo dot; the home page keeps a small "Latest on the board" preview. App choice: badges get screen-reader text inside the link instead of an `aria-label` (also fixes the Chores link's label-in-name issue).
+
+**Chat:** `ChatMessage { householdId, authorId, text ≤ 2000, editedAt, deletedAt, deletedBy }` (deleted = text removed, "message removed" shown); read position per member `Membership.chatReadAt` (server-side, so unread counts follow the person across devices); API `…/chat`: messages (newest page + "earlier" by cursor), send, edit (author), delete (author or managers), unread count, mark read; live topic `'chat'`. Only accounts chat (profiles have no login). UI: day separators, grouped bubbles (own on the right), Enter sends / Shift+Enter new line, "Load earlier", "New messages" jump button, `role="log"`.
+
+**Polls:** creating (Enter goes to the next option and adds one, empty last slot appears by itself, Backspace on an empty option removes it, move up/down, "One answer | Several", "Results: right away | after voting"); results (percent of voters, leading option marked, "Winner" when ended, your vote marked; results after voting are hidden **on the server** until you voted); who voted ("+n" avatars, "Who voted" list per option and "Not voted yet"); look (≥ 44 px rows on phones, optimistic vote with animated bars and reduced motion respected, "Ends in 2 days" / "Ended" badge).
+
+## Phase 3c — Chat polish: who's typing, reactions on the bubble (S) ✅ done 2026-11-18
+
+Built as planned below; the "…" after "Ann is typing" is three dots that light up in turn (user request 2026-11-18). See HANDOFF → Decisions for the details.
+
+User requests (2026-11-17):
+
+**1. Who is writing right now** ("Ann is typing…").
+- Client: while the message field has text and changes, send a socket event `chat:typing` at most every 3 s; send `chat:typing-stop` on send, on clearing the field and when leaving the chat. Nothing is stored.
+- Server (`backend/src/socket/`): accept the event only from a socket that is in that household's room (same check as joining it), and pass `{ householdId, memberId }` on to the room **except the sender** (`socket.to(room)`). App choice: this is the first event that carries data instead of only a topic (it's ephemeral, not secret, and refetching makes no sense for it); add it to both `contracts.ts` files.
+- Display under the message list, above the field: "Ann is typing…", "Ann and Ben are typing…", "Several people are typing…" with small animated dots (static with reduced motion). Someone counts as typing until 6 s after their last ping, or until their message arrives or a stop event comes.
+- Screen readers: a polite status that only speaks when the set of typing people changes from none to someone (not on every ping), so it doesn't chatter.
+- Only people in the chat at the moment see it; it is not shown in the nav badge.
+- Tests: pure helper for "who is typing" (expiry, names text) with unit tests; socket test that a member's event reaches the others but not the sender and that a socket outside the household can't send into its room; browser check with two users.
+
+**2. Reaction chips overlap the bubble** (like common messengers).
+- The chips sit on the bubble's bottom edge (negative top margin, small ring in the card colour so they read as separate), aligned to the bubble's outer side (right for your own messages, left for others).
+- The bubble gets a little extra bottom padding when it has reactions, so chips never cover text; the next message moves down accordingly.
+- Keep chips at least 24 × 24 px (WCAG 2.5.8 target size), check contrast of the chip on both bubble colours (your green, others' grey) in all 7 themes, and that the "Add a reaction" button stays reachable.
+
+**Verify:** unit + socket tests; browser: two users, typing appears/disappears for the other only, overlap looks right for long and short messages and several reactions, phone width, light + dark, axe.
+
+## Phase 4 — Guest / babysitter page (S–M) ✅ done 2026-11-18
+
+Built as planned below, plus a **Wi-Fi QR code** (user request 2026-11-18; moved here from "Later"). Details and app choices: HANDOFF → Decisions.
 
 **Content** (`GuestInfo`, one per household, edited by managers, seen by all members). Sections, each optional:
 - **Wi-Fi:** network name, password.
@@ -89,7 +124,6 @@ Status: **phases 1–3 done** (2026-11-16/17, uncommitted); **phase 4 (guest pag
 
 ## Later / optional (not planned)
 
-- Wi-Fi QR code on the guest page (needs a QR library).
 - A poll linked to a meal plan day ("Pizza or pasta on Friday?" → the winner becomes the meal).
 - Push for "approval needed", new posts (when push exists, holidays-packing-pwa phases 5–6).
 - Chore checklists (HANDOFF open item 4) fit with templates.

@@ -13,6 +13,10 @@ export function householdKeys(householdId: string, topics: HouseholdTopic[]): Qu
       if (topic === 'packing') keys.push(['household', householdId, 'packing'])
       if (topic === 'rewards') keys.push(['household', householdId, 'rewards'])
       if (topic === 'pinboard') keys.push(['household', householdId, 'posts'])
+      // Messages and the unread count.
+      if (topic === 'chat') keys.push(['household', householdId, 'chat'])
+      // Guest page content and its links (Settings).
+      if (topic === 'guest') keys.push(['household', householdId, 'guest'])
       // The motivation switches (incl. rewards) live on the household.
       if (topic === 'household') keys.push(['households'], ['household', householdId, 'stats'], ['household', householdId, 'rewards'])
       // Prefix: every loaded range and every open entry of this household's calendar.

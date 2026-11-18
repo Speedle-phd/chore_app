@@ -234,6 +234,62 @@ describe('online presence', () => {
    })
 })
 
+describe('who is typing in the chat', () => {
+   it('reaches the other members (as membership id), never the sender', async () => {
+      const { owner, member, hid, mid } = await household()
+      const o = client(owner.cookie)
+      const m = client(member.cookie)
+      await Promise.all([connected(o), connected(m)])
+      await subscribe(o, hid)
+      await subscribe(m, hid)
+
+      const seen = next(o, 'chat:typing')
+      const senderQuiet = silent(m, 'chat:typing')
+      m.emit('chat:typing', hid)
+      expect(await seen).toEqual({ householdId: hid, memberId: mid })
+      expect(await senderQuiet).toBe(true)
+
+      const stopped = next(o, 'chat:typing-stop')
+      m.emit('chat:typing-stop', hid)
+      expect(await stopped).toEqual({ householdId: hid, memberId: mid })
+   })
+
+   it('a socket outside the household can’t send into its room', async () => {
+      const { owner, hid } = await household()
+      const o = client(owner.cookie)
+      await connected(o)
+      await subscribe(o, hid)
+      const s = client((await signedInUser(app, 'Stranger')).cookie)
+      await connected(s)
+      expect(await subscribe(s, hid)).toMatchObject({ ok: false })
+
+      const quiet = silent(o, 'chat:typing')
+      s.emit('chat:typing', hid)
+      s.emit('chat:typing', { $ne: null })
+      expect(await quiet).toBe(true)
+   })
+
+   it('a member must have subscribed, and a removed member can’t send any more', async () => {
+      const { owner, member, hid, mid } = await household()
+      const o = client(owner.cookie)
+      const m = client(member.cookie)
+      await Promise.all([connected(o), connected(m)])
+      await subscribe(o, hid)
+
+      const notSubscribed = silent(o, 'chat:typing')
+      m.emit('chat:typing', hid)
+      expect(await notSubscribed).toBe(true)
+
+      await subscribe(m, hid)
+      const told = next(m, 'user:changed')
+      await api(owner.cookie).del(`/api/households/${hid}/members/${mid}`)
+      await told
+      const quiet = silent(o, 'chat:typing')
+      m.emit('chat:typing', hid)
+      expect(await quiet).toBe(true)
+   })
+})
+
 describe('personal events', () => {
    it('an invitation by handle reaches the invitee live', async () => {
       const { owner, hid } = await household()

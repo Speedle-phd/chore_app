@@ -16,6 +16,8 @@ const pollSchema = new Schema(
    {
       options: { type: [new Schema({ text: { type: String, required: true, trim: true, maxlength: 100 } })], default: [] },
       multiple: { type: Boolean, default: false },
+      /** Counts and names only for people who voted, until the poll ends (hidden on the server). */
+      resultsAfterVote: { type: Boolean, default: false },
       closesAt: { type: Date, default: null },
       closedAt: { type: Date, default: null },
       /** Named votes (user decision): one entry per person, replaced when they change it. */

@@ -37,6 +37,16 @@ export type Poll = {
 export const isOpen = (poll: Pick<Poll, 'closesAt' | 'closedAt'>, now: Date) =>
    poll.closedAt === null && (poll.closesAt === null || poll.closesAt.getTime() > now.getTime())
 
+/**
+ * Whether this viewer may see counts and names: always, unless the poll shows results only
+ * after voting; then once they voted or the poll has ended (user request 2026-11-17).
+ */
+export const resultsVisible = (
+   poll: Pick<Poll, 'closesAt' | 'closedAt' | 'votes'> & { resultsAfterVote: boolean },
+   viewerId: string,
+   now: Date,
+) => !poll.resultsAfterVote || !isOpen(poll, now) || poll.votes.some((v) => v.memberId === viewerId)
+
 /** Why a vote isn't valid, or null: known options, each once, at most one unless multiple choice. */
 export function voteProblem(poll: Pick<Poll, 'options' | 'multiple'>, optionIds: readonly string[]): string | null {
    if (new Set(optionIds).size !== optionIds.length) return 'Pick each option only once.'

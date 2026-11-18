@@ -1,7 +1,7 @@
 import { Router, type Request } from 'express'
 import { UnauthorizedError } from '../errors'
 import type { MembershipType } from '../models/membershipModel'
-import { postInputSchema, postUpdateSchema, voteSchema } from './pinboardSchemas'
+import { postInputSchema, postUpdateSchema, readSchema, voteSchema } from './pinboardSchemas'
 import type { PinboardService } from './pinboardService'
 
 const me = (req: Request): MembershipType => {
@@ -16,6 +16,12 @@ export function createPinboardRoutes(pinboard: PinboardService) {
 
    router.get('/', async (req, res) => {
       res.json(await pinboard.list(me(req), new Date()))
+   })
+   router.get('/unread', async (req, res) => {
+      res.json(await pinboard.unread(me(req), new Date()))
+   })
+   router.post('/read', async (req, res) => {
+      res.json(await pinboard.markRead(me(req), readSchema.parse(req.body).upTo, new Date()))
    })
    router.post('/', async (req, res) => {
       res.status(201).json(await pinboard.create(me(req), postInputSchema.parse(req.body), new Date()))

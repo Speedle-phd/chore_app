@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasUnread, linkify, relativeTime } from './format'
+import { linkify, relativeTime } from './format'
 
 const NOW = new Date('2026-11-17T12:00:00Z')
 const ago = (ms: number) => new Date(NOW.getTime() - ms).toISOString()
@@ -38,17 +38,3 @@ describe('linkify', () => {
    })
 })
 
-describe('hasUnread', () => {
-   const posts = [
-      { authorId: 'me', createdAt: '2026-11-17T11:00:00.000Z' },
-      { authorId: 'ben', createdAt: '2026-11-17T10:00:00.000Z' },
-   ]
-   it('counts only other people’s posts newer than the last look', () => {
-      expect(hasUnread(posts, '2026-11-17T09:00:00.000Z', 'me')).toBe(true)
-      expect(hasUnread(posts, '2026-11-17T10:30:00.000Z', 'me')).toBe(false)
-   })
-   it('never looked: anything by others is new; own posts never are', () => {
-      expect(hasUnread(posts, null, 'me')).toBe(true)
-      expect(hasUnread([posts[0]!], null, 'me')).toBe(false)
-   })
-})

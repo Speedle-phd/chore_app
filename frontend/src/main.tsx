@@ -13,6 +13,7 @@ import RecipeDetail from './routes/RecipeDetail.tsx'
 import RecipeEdit from './routes/RecipeEdit.tsx'
 import Packing from './routes/Packing.tsx'
 import PackingListPage from './routes/PackingListPage.tsx'
+import Board from './routes/Board.tsx'
 import NotFound from './routes/NotFound.tsx'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { ThemeProvider } from '@/components/theme-provider'
@@ -30,6 +31,8 @@ import Onboarding from './routes/Onboarding.tsx'
 import Invite from './routes/Invite.tsx'
 import Invitations from './routes/Invitations.tsx'
 import Account from './routes/Account.tsx'
+import GuestPage from './routes/GuestPage.tsx'
+import GuestEditor from './routes/GuestEditor.tsx'
 import { RequireHousehold } from '@/features/households/RequireHousehold'
 import { Toaster } from '@/components/ui/sonner'
 import { MotionConfig } from 'motion/react'
@@ -61,7 +64,9 @@ const router = createBrowserRouter([
                { path: 'recipes/:recipeId/edit', Component: RecipeEdit },
                { path: 'packing', Component: Packing },
                { path: 'packing/:listId', Component: PackingListPage },
+               { path: 'board', Component: Board },
                { path: 'settings', Component: Settings },
+               { path: 'settings/guest', Component: GuestEditor },
                { path: 'invitations', Component: Invitations },
                { path: 'account', Component: Account },
             ],
@@ -84,6 +89,8 @@ const router = createBrowserRouter([
    { path: 'verify-email', Component: VerifyEmail, errorElement: <ErrorPage /> },
    { path: 'reset-password', Component: ResetPassword, errorElement: <ErrorPage /> },
    { path: 'invite', Component: Invite, errorElement: <ErrorPage /> },
+   // Public guest page behind a secret link (no sign-in, no app chrome)
+   { path: 'guest/:token', Component: GuestPage, errorElement: <ErrorPage /> },
    { path: '*', Component: NotFound },
 ])
 

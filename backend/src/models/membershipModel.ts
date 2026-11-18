@@ -27,6 +27,10 @@ const membershipSchema = new Schema(
          ),
          default: null,
       },
+      /** Household chat: read up to here (null = since joining). Server-side, so it follows the person across devices. */
+      chatReadAt: { type: Date, default: null },
+      /** Pinboard: notes and polls read up to here (null = since joining). */
+      postsReadAt: { type: Date, default: null },
    },
    { timestamps: true },
 )

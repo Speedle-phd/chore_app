@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { canVoteFor } from '../households/permissions'
-import { applyVote, expiresAt, isOpen, results, voteProblem, type Poll } from './pinboard'
+import { applyVote, expiresAt, isOpen, results, resultsVisible, voteProblem, type Poll } from './pinboard'
 
 const NOW = new Date('2026-11-17T10:00:00Z')
 const at = (iso: string) => new Date(iso)
@@ -87,6 +87,20 @@ describe('results', () => {
          { id: 'b', text: 'Pasta', count: 1, voterIds: ['ben'] },
          { id: 'c', text: 'Curry', count: 0, voterIds: [] },
       ])
+   })
+})
+
+describe('resultsVisible', () => {
+   const votes = [{ memberId: 'ben', optionIds: ['a'], at: NOW }]
+   it('always without “results after voting”', () => {
+      expect(resultsVisible({ resultsAfterVote: false, closesAt: null, closedAt: null, votes }, 'ann', NOW)).toBe(true)
+   })
+   it('with it: only after your own vote, or once the poll has ended', () => {
+      const p = { resultsAfterVote: true, closesAt: null, closedAt: null, votes }
+      expect(resultsVisible(p, 'ann', NOW)).toBe(false)
+      expect(resultsVisible(p, 'ben', NOW)).toBe(true)
+      expect(resultsVisible({ ...p, closedAt: NOW }, 'ann', NOW)).toBe(true)
+      expect(resultsVisible({ ...p, closesAt: at('2026-11-17T09:00:00Z') }, 'ann', NOW)).toBe(true)
    })
 })
 

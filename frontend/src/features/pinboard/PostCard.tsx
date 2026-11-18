@@ -1,19 +1,18 @@
 import { useId, useState } from 'react'
-import { Check, Lock, MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react'
+import { Lock, MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiError } from '@/api/client'
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Textarea } from '@/components/ui/textarea'
 import type { Member } from '@/features/households/householdsApi'
 import { Person } from '@/features/stats/parts'
-import { avatarSrc, initials } from '@/lib/member'
 import { cn } from '@/lib/utils'
 import { linkify, relativeTime, shortDate } from './format'
-import { useClosePoll, useDeletePost, useEditPost, usePinPost, useVote, type Post } from './pinboardApi'
+import { useClosePoll, useDeletePost, useEditPost, usePinPost, type Post } from './pinboardApi'
+import { PollView } from './PollView'
 
 type PostCardProps = {
    householdId: string
@@ -116,7 +115,7 @@ export function PostCard({ householdId, post, members, voterId, manager, now }: 
             )}
          </p>
 
-         {post.poll && <PollView householdId={householdId} post={post} poll={post.poll} member={member} voterId={voterId} now={now} />}
+         {post.poll && <PollView householdId={householdId} post={post} poll={post.poll} members={members} voterId={voterId} now={now} />}
 
          {post.expiresAt && !post.pinned && (
             <p className='text-xs text-muted-foreground'>
@@ -127,91 +126,6 @@ export function PostCard({ householdId, post, members, voterId, manager, now }: 
          {editing && <EditDialog householdId={householdId} post={post} onClose={() => setEditing(false)} />}
          <DeletePost householdId={householdId} post={post} open={deleting} onClose={() => setDeleting(false)} />
       </article>
-   )
-}
-
-function PollView({
-   householdId,
-   post,
-   poll,
-   member,
-   voterId,
-   now,
-}: {
-   householdId: string
-   post: Post
-   poll: NonNullable<Post['poll']>
-   member: (id: string) => Member | undefined
-   voterId: string | undefined
-   now: Date
-}) {
-   const id = useId()
-   const vote = useVote(householdId)
-   const mine = poll.options.filter((o) => voterId && o.voterIds.includes(voterId)).map((o) => o.id)
-   const most = Math.max(1, ...poll.options.map((o) => o.count))
-   const voterName = voterId ? member(voterId) : undefined
-   const toggle = (optionId: string) => {
-      if (!voterId) return
-      const picked = mine.includes(optionId)
-      const next = poll.multiple ? (picked ? mine.filter((x) => x !== optionId) : [...mine, optionId]) : picked ? [] : [optionId]
-      vote.mutate({ id: post.id, memberId: voterId, optionIds: next }, { onError: (e) => toast.error(apiError(e).message) })
-   }
-
-   return (
-      <div className='space-y-2'>
-         <p id={`${id}-hint`} className='text-xs text-muted-foreground'>
-            {!poll.open
-               ? `Voting closed · ${poll.voters} ${poll.voters === 1 ? 'vote' : 'votes'}`
-               : `${poll.multiple ? 'Pick as many as you like' : 'Pick one'}${voterName && !voterName.isMe ? ` for ${voterName.fname}` : ''}; tap again to take it back · ${poll.voters} ${poll.voters === 1 ? 'vote' : 'votes'}${poll.closesAt ? ` · ends ${shortDate(poll.closesAt, now)}` : ''}`}
-         </p>
-         <ul className='space-y-1.5'>
-            {poll.options.map((o) => {
-               const picked = mine.includes(o.id)
-               const voters = o.voterIds.map(member)
-               return (
-                  <li key={o.id}>
-                     <button
-                        type='button'
-                        aria-pressed={picked}
-                        aria-describedby={`${id}-hint`}
-                        disabled={!poll.open || !voterId || vote.isPending}
-                        onClick={() => toggle(o.id)}
-                        className={cn(
-                           'relative flex w-full items-center gap-3 overflow-hidden rounded-xl border px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default',
-                           picked ? 'border-primary' : 'hover:border-primary/50 disabled:hover:border-border',
-                        )}
-                     >
-                        {/* Share of the most-voted option (decorative; the count is the text). */}
-                        <span aria-hidden className='absolute inset-y-0 left-0 bg-primary/10 transition-[width]' style={{ width: `${(o.count / most) * 100}%` }} />
-                        <span
-                           aria-hidden
-                           className={cn(
-                              'relative grid size-4.5 shrink-0 place-items-center rounded-full border',
-                              poll.multiple && 'rounded-md',
-                              picked ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/60',
-                           )}
-                        >
-                           {picked && <Check className='size-3' />}
-                        </span>
-                        <span className='relative min-w-0 flex-1 font-medium wrap-break-word'>{o.text}</span>
-                        <span className='relative flex -space-x-1.5' aria-hidden>
-                           {voters.slice(0, 5).map((m, i) => (
-                              <Avatar key={m?.id ?? i} className='size-5 ring-2 ring-card'>
-                                 {m && <AvatarImage src={avatarSrc(m)} alt='' />}
-                                 <AvatarFallback className='bg-muted text-[0.5rem] font-semibold text-foreground'>{m ? initials(m) : '?'}</AvatarFallback>
-                              </Avatar>
-                           ))}
-                        </span>
-                        <span className='relative w-5 text-right font-semibold tabular-nums'>{o.count}</span>
-                        <span className='sr-only'>
-                           {o.count === 0 ? ', no votes' : `, ${o.count} ${o.count === 1 ? 'vote' : 'votes'}: ${voters.map((m) => m?.fname ?? 'someone who left').join(', ')}`}
-                        </span>
-                     </button>
-                  </li>
-               )
-            })}
-         </ul>
-      </div>
    )
 }
 

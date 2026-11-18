@@ -23,6 +23,8 @@ const poll = z
          .max(MAX_OPTIONS, `At most ${MAX_OPTIONS} options.`)
          .refine((o) => new Set(o.map((x) => x.toLowerCase())).size === o.length, 'Each option only once.'),
       multiple: z.boolean().default(false),
+      /** Results only after voting (or once it has ended). */
+      resultsAfterVote: z.boolean().default(false),
       expiry: expiry.default('week'),
       /** When voting ends; it can also be closed by hand. */
       closes: expiry.default('never'),
@@ -33,6 +35,9 @@ export const postInputSchema = z.discriminatedUnion('kind', [note, poll])
 export type PostInput = z.infer<typeof postInputSchema>
 
 export const postUpdateSchema = z.object({ text: z.string().trim().min(1, 'Write something.').max(1000) }).strict()
+
+/** Seen up to (and including) this post. */
+export const readSchema = z.object({ upTo: objectId }).strict()
 
 export const voteSchema = z
    .object({

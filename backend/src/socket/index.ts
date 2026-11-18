@@ -5,31 +5,36 @@ import { corsOptions } from '../app'
 import { readCookie, type Sessions } from '../auth/sessions'
 import type { Env } from '../config/env'
 import { Membership } from '../models/membershipModel'
-import type { ClientToServerEvents, ServerToClientEvents, SocketData } from './contracts'
+import type { ClientToServerEvents, RateBucket, ServerToClientEvents, SocketData } from './contracts'
 import { createPresence } from './presence'
 import { initRealtime, rooms } from './realtime'
 
 type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>
 type Reply<T> = (result: { ok: true; data?: T } | { ok: false; error: string }) => void
 
-const COMMANDS_PER_MINUTE = 60
+/**
+ * Per socket and minute. Typing has its own budget, so a fast writer can't use up the
+ * commands (re-subscribing after a reconnect). The client pings at most every 3 s (~20/min)
+ * plus a stop per sent message.
+ */
+const PER_MINUTE: Record<RateBucket, number> = { commands: 60, typing: 60 }
 
-/** Simple per-socket rate limit for client commands. */
-function allowCommand(socket: AppSocket) {
+function allow(socket: AppSocket, bucket: RateBucket) {
    const now = Date.now()
-   if (now - socket.data.windowStart > 60_000) {
-      socket.data.windowStart = now
-      socket.data.commands = 0
+   const limit = socket.data.limits[bucket]
+   if (now - limit.windowStart > 60_000) {
+      limit.windowStart = now
+      limit.count = 0
    }
-   socket.data.commands += 1
-   return socket.data.commands <= COMMANDS_PER_MINUTE
+   limit.count += 1
+   return limit.count <= PER_MINUTE[bucket]
 }
 
 /** Wraps an async command: validation/permission failures and crashes become a safe ack, never a hanging client. */
 function command<T>(socket: AppSocket, handler: (householdId: string) => Promise<T>) {
    return (raw: unknown, ack: Reply<T>) => {
       const reply: Reply<T> = typeof ack === 'function' ? ack : () => undefined
-      if (!allowCommand(socket)) return reply({ ok: false, error: 'Too many requests' })
+      if (!allow(socket, 'commands')) return reply({ ok: false, error: 'Too many requests' })
       if (typeof raw !== 'string' || !isValidObjectId(raw)) return reply({ ok: false, error: 'Invalid household' })
       handler(raw).then(
          (data) => reply(data === undefined ? { ok: true } : { ok: true, data }),
@@ -82,7 +87,13 @@ export function createSocketServer(httpServer: HttpServer, env: Env, sessions: S
          if (origin && origin !== allowedOrigin) return next(new Error('Forbidden origin'))
          const auth = await sessions.resolve(readCookie(socket.request, sessions.cookieName))
          if (!auth) return next(new Error('Not signed in'))
-         socket.data = { userId: auth.userId.toString(), sessionHash: auth.sessionHash, commands: 0, windowStart: Date.now() }
+         const now = Date.now()
+         socket.data = {
+            userId: auth.userId.toString(),
+            sessionHash: auth.sessionHash,
+            limits: { commands: { count: 0, windowStart: now }, typing: { count: 0, windowStart: now } },
+            memberships: new Map(),
+         }
          next()
       } catch (error) {
          console.error('Socket handshake failed:', error)
@@ -111,6 +122,7 @@ export function createSocketServer(httpServer: HttpServer, env: Env, sessions: S
          command(socket, async (householdId) => {
             const member = await Membership.exists({ householdId, userId })
             if (!member) throw new Error('Household not found')
+            socket.data.memberships.set(householdId, member._id.toString())
             await socket.join(rooms.household(householdId))
             // Who in this household is online right now (as membership ids).
             const online = await Membership.find({ householdId, userId: { $in: presence.onlineUserIds() } })
@@ -122,10 +134,23 @@ export function createSocketServer(httpServer: HttpServer, env: Env, sessions: S
       socket.on(
          'household:unsubscribe',
          command(socket, async (householdId): Promise<undefined> => {
+            socket.data.memberships.delete(householdId)
             await socket.leave(rooms.household(householdId))
             return undefined
          }),
       )
+
+      // "Ann is typing…": passed on to the rest of the household, nothing stored. Only from a socket
+      // that is still in the room: subscribing checked the membership, and removal takes it out.
+      const relayTyping = (event: 'chat:typing' | 'chat:typing-stop') => (raw: unknown) => {
+         if (typeof raw !== 'string' || !allow(socket, 'typing')) return
+         const room = rooms.household(raw)
+         const memberId = socket.data.memberships.get(raw)
+         if (!memberId || !socket.rooms.has(room)) return
+         socket.to(room).emit(event, { householdId: raw, memberId })
+      }
+      socket.on('chat:typing', relayTyping('chat:typing'))
+      socket.on('chat:typing-stop', relayTyping('chat:typing-stop'))
    })
 
    initRealtime(io)

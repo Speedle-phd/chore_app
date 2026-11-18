@@ -51,6 +51,23 @@
    --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+@theme {
+   /* "Ann is typing…": three dots that light up one after another (delays set per dot). */
+   --animate-typing-dot: typing-dot 1.2s ease-in-out infinite;
+   @keyframes typing-dot {
+      0%,
+      60%,
+      100% {
+         opacity: 0.35;
+         transform: translateY(0);
+      }
+      30% {
+         opacity: 1;
+         transform: translateY(-0.2em);
+      }
+   }
+}
+
 /* `.light` too, so a Light swatch shows these colours inside a dark page (theme menu). */
 :root,
 .light {
@@ -421,4 +438,50 @@
    --info-text: hsl(210, 92%, 35%);
    --warning-text: hsl(31, 92%, 28%);
    --error-text: hsl(360, 100%, 37%);
+}
+
+/*
+ * Printing (e.g. the guest page) always uses the light theme's colours: dark cards with light
+ * text waste ink and turn unreadable where browsers drop backgrounds. Same values as :root.
+ */
+@media print {
+   html.dark,
+   html.graphite,
+   html.moss,
+   html.ember {
+      --theme: var(--primary);
+      --background: #F6F8F6;
+      --foreground: #24332E;
+      --card: #FFFFFF;
+      --card-foreground: #24332E;
+      --popover: #FFFFFF;
+      --popover-foreground: #24332E;
+      --primary: #3F7060;
+      --primary-foreground: #FFFFFF;
+      --secondary: #E6EEE8;
+      --secondary-foreground: #304D40;
+      --muted: #ECEFE9;
+      --muted-foreground: #5A6960;
+      --accent: #F5E8CE;
+      --accent-foreground: #73501E;
+      --destructive: #A83636;
+      --destructive-foreground: #FFFFFF;
+      --border: #E2E8E3;
+      --input: #D7DFD9;
+      --ring: #5F907A;
+      --chart-1: #3F7060;
+      --chart-2: #B07E22;
+      --chart-3: #6A8FAD;
+      --chart-4: #BF7766;
+      --chart-5: #8D83B8;
+      --sidebar: #EEF2EC;
+      --sidebar-foreground: #304139;
+      --sidebar-primary: #3F7060;
+      --sidebar-primary-foreground: #FFFFFF;
+      --sidebar-accent: #DDE9DF;
+      --sidebar-accent-foreground: #304D40;
+      --sidebar-border: #DDE3DA;
+      --sidebar-ring: #6C9D87;
+      color-scheme: light;
+   }
 }

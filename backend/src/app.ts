@@ -28,6 +28,8 @@ import { createPackingService } from './packing/packingService'
 import { createInvitationRoutes } from './invitations/invitationRoutes'
 import { createInvitationService } from './invitations/invitationService'
 import { createHouseholdService } from './households/householdService'
+import { createGuestPageRoutes } from './guest/guestRoutes'
+import { createGuestService } from './guest/guestService'
 import { createMailer, type SendMail } from './mail/mailer'
 import { csrfProtection } from './middleware/csrf'
 import { errorHandler } from './middleware/errorHandler'
@@ -45,12 +47,16 @@ export function corsOptions(env: Pick<Env, 'APP_URL'>) {
 const FEED_RATE_LIMIT = 300
 /** Recipe imports per IP per 15 minutes: each one makes the server fetch another website. App choice. */
 const IMPORT_RATE_LIMIT = 60
+/** Guest page views per IP per 15 minutes (a guest reloading now and then). App choice. */
+const GUEST_PAGE_RATE_LIMIT = 120
 
 /** Replaceable collaborators (tests swap in fakes for email and the breach API). */
 export type AppDeps = {
    sendMail?: SendMail
    isBreached?: BreachCheck
    rateLimits?: RateLimits
+   /** Tests only: a smaller limit for the public guest page. */
+   guestPageLimit?: number
    /** Tests only: addresses the recipe importer may fetch despite the SSRF rules (a local test server). */
    allowFetchAddress?: (address: string) => boolean
 }
@@ -94,6 +100,7 @@ export function createApp(env: Env, deps: AppDeps = {}) {
    const calendar = createCalendarService()
    const ical = createIcalService({ calendar, appUrl: env.APP_URL })
    const shopping = createShoppingService()
+   const guest = createGuestService({ appUrl: env.APP_URL })
    const account = createAccountService({ households, sessions, avatarDir: env.AVATAR_UPLOAD_DIR })
 
    const appOrigin = new URL(env.APP_URL)
@@ -122,10 +129,13 @@ export function createApp(env: Env, deps: AppDeps = {}) {
          createRecipeService({ shopping, calendar, imageDir: env.RECIPE_UPLOAD_DIR, ...(deps.allowFetchAddress ? { allowFetchAddress: deps.allowFetchAddress } : {}) }),
          createPackingService({ shopping }),
          limiter(IMPORT_RATE_LIMIT),
+         guest,
       ),
    )
    // Calendar apps fetch subscribed feeds without a session; the secret link is the key.
    app.use('/api/ical', createFeedRoutes(ical, limiter(FEED_RATE_LIMIT)))
+   // The guest page is public; the secret link is the key.
+   app.use('/api/guest', createGuestPageRoutes(guest, limiter(deps.guestPageLimit ?? GUEST_PAGE_RATE_LIMIT)))
    app.use('/api/invitations', createInvitationRoutes(invitations, sessions.requireSession, limits.token))
    app.use('/uploads/avatars', express.static(env.AVATAR_UPLOAD_DIR))
    app.use('/uploads/recipes', express.static(env.RECIPE_UPLOAD_DIR))

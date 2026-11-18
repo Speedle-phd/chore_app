@@ -10,6 +10,7 @@ import SettingsSection from '@/components/SettingsSection'
 import HouseholdNameForm from '@/features/households/HouseholdNameForm'
 import { RemindersSection } from '@/features/reminders/RemindersSection'
 import { FeedSection } from '@/features/ical/FeedSection'
+import { GuestSection } from '@/features/guest/GuestSection'
 import { MotivationSection } from '@/features/stats/MotivationSection'
 import { RegionSection } from '@/features/holidays/RegionSection'
 import {
@@ -89,6 +90,13 @@ const Settings = () => {
                description='See this household’s calendar in Google Calendar, Apple Calendar or Outlook through a private link. It’s read-only; they refresh it every few hours.'
             >
                <FeedSection householdId={household.id} />
+            </SettingsSection>
+
+            <SettingsSection
+               title='Guest page'
+               description='Wi-Fi, emergency numbers, contacts and routines for a babysitter or house sitter, shared through a private link that needs no account.'
+            >
+               <GuestSection household={household} />
             </SettingsSection>
 
             <SettingsSection title='Leave' description='Stop being part of this household. Someone can invite you again later.'>

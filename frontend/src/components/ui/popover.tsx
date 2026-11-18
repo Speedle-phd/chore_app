@@ -8,13 +8,14 @@ const PopoverTrigger = PopoverPrimitive.Trigger
 function PopoverContent({
    className,
    align = 'start',
+   side = 'bottom',
    sideOffset = 6,
    children,
    ...props
-}: PopoverPrimitive.Popup.Props & { align?: 'start' | 'center' | 'end'; sideOffset?: number }) {
+}: PopoverPrimitive.Popup.Props & { align?: 'start' | 'center' | 'end'; side?: 'top' | 'bottom'; sideOffset?: number }) {
    return (
       <PopoverPrimitive.Portal>
-         <PopoverPrimitive.Positioner align={align} sideOffset={sideOffset} className='z-60'>
+         <PopoverPrimitive.Positioner align={align} side={side} sideOffset={sideOffset} className='z-60'>
             <PopoverPrimitive.Popup
                className={cn(
                   'rounded-xl border bg-popover p-3 text-popover-foreground shadow-lg outline-none',

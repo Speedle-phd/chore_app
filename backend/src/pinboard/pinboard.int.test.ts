@@ -59,7 +59,9 @@ type PostView = {
       closedAt: string | null
       open: boolean
       voters: number
-      options: { id: string; text: string; count: number; voterIds: string[] }[]
+      resultsAfterVote: boolean
+      resultsVisible: boolean
+      options: { id: string; text: string; count: number | null; voterIds: string[] }[]
    } | null
 }
 
@@ -182,6 +184,35 @@ describe('posts', () => {
    })
 })
 
+describe('new on the board', () => {
+   it('counts others’ new notes and polls since the last look; posting and reading clear it; it only moves forward', async () => {
+      const { posts, owner, join, poll } = await home()
+      later(1)
+      const ben = await join('member')
+      const unread = async (who: ReturnType<typeof as>) => ((await who.get(`${posts}/unread`)).body as { count: number }).count
+      expect(await unread(ben)).toBe(0)
+
+      later(2)
+      const first = (await owner.post(posts, { kind: 'note', text: 'One' })).body as PostView
+      later(3)
+      await poll(owner)
+      expect(await unread(ben)).toBe(2)
+      expect(await unread(owner)).toBe(0) // own posts never count
+
+      // Ben posts: counts as having seen everything up to it.
+      later(4)
+      await ben.post(posts, { kind: 'note', text: 'Mine' })
+      expect(await unread(ben)).toBe(0)
+      later(5)
+      const third = (await owner.post(posts, { kind: 'note', text: 'Three' })).body as PostView
+      expect(await unread(ben)).toBe(1)
+      expect((await ben.post(`${posts}/read`, { upTo: third.id })).body.count).toBe(0)
+      // An older post doesn't move the position back.
+      expect((await ben.post(`${posts}/read`, { upTo: first.id })).body.count).toBe(0)
+      expect((await ben.post(`${posts}/read`, { upTo: 'nope' })).status).toBe(400)
+   })
+})
+
 describe('polls', () => {
    it('named votes: vote, change, withdraw; results list who voted for what', async () => {
       const { posts, owner, ownerMid, join, poll } = await home()
@@ -238,6 +269,31 @@ describe('polls', () => {
       await Promise.all(people.map((x) => x.put(`${posts}/${p.id}/vote`, { optionIds: [pizza] })))
       const stored = await Post.findById(p.id).lean()
       expect(stored?.poll?.votes).toHaveLength(4)
+   })
+
+   it('“results after voting”: counts and names stay hidden on the server until you voted or it ended', async () => {
+      const { posts, owner, join, poll, list } = await home()
+      const member = await join('member')
+      const p = await poll(owner, { resultsAfterVote: true })
+      const pizza = p.poll?.options[0]?.id
+      expect(p.poll).toMatchObject({ resultsAfterVote: true, resultsVisible: false })
+      await member.put(`${posts}/${p.id}/vote`, { optionIds: [pizza] })
+
+      // The owner hasn't voted: one vote exists, but no counts or names.
+      const hidden = (await list()).find((x) => x.id === p.id)
+      expect(hidden?.poll?.voters).toBe(1)
+      expect(hidden?.poll?.options.map((o) => [o.count, o.voterIds])).toEqual([[null, []], [null, []], [null, []]])
+      // The member voted: sees everything.
+      const seen = (await list(member)).find((x) => x.id === p.id)
+      expect(seen?.poll?.resultsVisible).toBe(true)
+      expect(seen?.poll?.options[0]).toMatchObject({ count: 1, voterIds: [member.mid] })
+      // The owner's own vote answer already shows the results.
+      const after = (await owner.put(`${posts}/${p.id}/vote`, { optionIds: [pizza] })).body as PostView
+      expect(after.poll?.options[0]?.count).toBe(2)
+      // Once ended, everyone sees them.
+      const other = await join('member')
+      await owner.post(`${posts}/${p.id}/close`)
+      expect((await list(other)).find((x) => x.id === p.id)?.poll?.options[0]?.count).toBe(2)
    })
 
    it('closing: by hand (author or admins) or at its closing time; no votes after', async () => {

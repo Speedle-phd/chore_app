@@ -1,4 +1,4 @@
-import type { ExpiryPreset, Post } from './pinboardApi'
+import type { ExpiryPreset } from './pinboardApi'
 
 export const EXPIRY_OPTIONS: { value: ExpiryPreset; label: string }[] = [
    { value: 'day', label: 'a day' },
@@ -51,9 +51,3 @@ export function linkify(text: string): TextPart[] {
    if (last < text.length) parts.push({ kind: 'text', value: text.slice(last) })
    return parts
 }
-
-/** Something new by someone else since this device last looked at the board. */
-export const hasUnread = (posts: readonly Pick<Post, 'createdAt' | 'authorId'>[], seenAt: string | null, meId: string | undefined) =>
-   posts.some((p) => p.authorId !== meId && (seenAt === null || p.createdAt > seenAt))
-
-export const seenKey = (householdId: string) => `pinboard-seen-${householdId}`

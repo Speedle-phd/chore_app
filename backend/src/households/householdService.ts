@@ -11,10 +11,12 @@ import { ItemMemory, ShoppingCategory, ShoppingItem, ShoppingList } from '../mod
 import { PackingList, PackingTemplate } from '../models/packingModels'
 import { Redemption, Reward } from '../models/rewardModels'
 import { Post } from '../models/postModel'
+import { ChatMessage } from '../models/chatMessageModel'
 import { CalendarItem } from '../models/calendarItemModel'
 import { Invitation } from '../models/invitationModel'
 import { Membership, type MembershipType, type Role } from '../models/membershipModel'
 import { Occurrence } from '../models/occurrenceModel'
+import { GuestInfo, GuestLink } from '../models/guestModels'
 import { Reminder } from '../models/reminderModel'
 import { User } from '../models/userModel'
 import { realtime } from '../socket/realtime'
@@ -140,6 +142,8 @@ export function createHouseholdService({ avatarDir, recipeDir }: { avatarDir: st
          await CalendarItem.deleteMany({ householdId: me.householdId })
          await Reminder.deleteMany({ householdId: me.householdId })
          await IcalFeed.deleteMany({ householdId: me.householdId })
+         await GuestLink.deleteMany({ householdId: me.householdId })
+         await GuestInfo.deleteMany({ householdId: me.householdId })
          const recipes = await Recipe.find({ householdId: me.householdId }).select('imageUrl').lean()
          for (const r of recipes) await deleteImage(r.imageUrl, recipeDir, RECIPE_IMAGES)
          await Recipe.deleteMany({ householdId: me.householdId })
@@ -148,6 +152,7 @@ export function createHouseholdService({ avatarDir, recipeDir }: { avatarDir: st
          await Redemption.deleteMany({ householdId: me.householdId })
          await Reward.deleteMany({ householdId: me.householdId })
          await Post.deleteMany({ householdId: me.householdId })
+         await ChatMessage.deleteMany({ householdId: me.householdId })
          for (const Model of [ShoppingItem, ShoppingList, ShoppingCategory, ItemMemory] as const) {
             await (Model as typeof ShoppingItem).deleteMany({ householdId: me.householdId })
          }
