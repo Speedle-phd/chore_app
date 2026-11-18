@@ -162,7 +162,50 @@ Notes for this mode:
   `TRUST_PROXY` accordingly.
 - The `hearth_caddy_data` volume stays empty here; certificates live with nginx.
 
-## Updates
+## Automatic deploys (GitHub Actions)
+
+Every push to `main` runs `.github/workflows/ci.yml`: the tests, then the images
+(`ghcr.io/speedle-phd/hearth-web|backend|mailer`, tagged with the commit), then the
+deploy. The deploy logs in to the server over SSH as the user `deploy`, whose key
+may only run `deploy/deploy.sh`. The script:
+
+1. checks the commit is on `main` and that `/docker/hearth` has no changed files,
+2. backs up the database to `/docker/hearth-backups` (keeps the newest 14),
+3. checks out that commit in `/docker/hearth` (compose files, Caddy config, the script),
+4. pulls that commit's images and starts them, waiting up to 5 minutes for "healthy",
+5. on failure starts the previous version again (the job turns red),
+6. keeps the images of the current and the previous version, removes older ones.
+
+The deployed commit is in `/docker/hearth-backups/deployed-commit`. Mongo is never
+pulled or upgraded by a deploy. `.env.production` and `mailer/.env` stay on the
+server only; GitHub never sees them.
+
+**One-time setup** (done 2026-11-18 for the current server):
+
+- A user `deploy` in the `docker` group owns `/docker/hearth` and `/docker/hearth-backups`;
+  `.env.production` and `mailer/.env` are `chmod 600`. SSH accepts keys only.
+- `/docker/hearth` is a clone over HTTPS (`git remote -v` shows `https://github.com/…`).
+- `/home/deploy/.ssh/authorized_keys` holds the Actions key, locked to the script:
+  ```
+  command="/bin/bash /docker/hearth/deploy/deploy.sh",restrict ssh-ed25519 AAAA… github-actions-hearth
+  ```
+- GitHub → Settings → Secrets and variables → Actions → repository secrets:
+  `SSH_HOST` (server address), `SSH_PRIVATE_KEY` (the private key), `SSH_KNOWN_HOSTS`
+  (output of `ssh-keyscan -t ed25519 <SSH_HOST>`, checked against the server's
+  `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`).
+- The three packages on ghcr.io are public (so the server pulls without a login).
+
+**By hand on the server** (as `deploy`; `/docker/hearth` is on a detached commit now,
+so `git pull` alone no longer applies):
+
+```bash
+sudo -u deploy bash -c 'cd /docker/hearth && bash deploy/deploy.sh <full commit id>'   # deploy or redeploy a commit of main
+sudo -u deploy bash -c 'cd /docker/hearth && docker compose --env-file .env.production ps'
+```
+
+A failed deploy can also be repeated on GitHub: the run → "Re-run failed jobs".
+
+## Updates (by hand, without GitHub Actions)
 
 Back up the database first (see Backups), then:
 

@@ -136,3 +136,31 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  # Starts this commit's images on the server (deploy/deploy.sh there: backup, pull, start,
+  # wait for healthy, roll back on failure). The SSH key can only run that script.
+  # Secrets (Settings → Secrets and variables → Actions): SSH_HOST, SSH_PRIVATE_KEY, SSH_KNOWN_HOSTS.
+  deploy:
+    name: Deploy to the server
+    needs: [images]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production # shows the deploy history on GitHub
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false # never stop a deploy halfway
+    steps:
+      - name: Deploy ${{ github.sha }}
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Only the server's own host key is accepted (no trust on first use).
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \
+            "deploy@$SSH_HOST" "$GITHUB_SHA"
